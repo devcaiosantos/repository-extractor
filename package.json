@@ -1,0 +1,23 @@
+{
+  "dependencies": {
+    "@types/node": "^24.3.0",
+    "axios": "^1.11.0",
+    "dotenv": "^17.2.1",
+    "typescript": "^5.9.2"
+  },
+  "scripts": {
+    "build": "npm run clean && tsc",
+    "start": "node dist/main.js",
+    "dev": "tsx src/main.ts",
+    "clean": "rimraf dist"
+  },
+  "type": "module",
+  "name": "repository-extractor",
+  "version": "1.0.0",
+  "main": "./src/main.ts",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/axios": "^0.14.4",
+    "tsx": "^4.20.5"
+  }
+}
