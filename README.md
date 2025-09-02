@@ -29,7 +29,7 @@ Siga estas instruções para obter uma cópia do projeto e executá-lo em sua m�
 Para executar este projeto, você precisará ter instalado em sua máquina:
 
 - [Node.js](https://nodejs.org/) (versão 18.x ou superior)
-- [npm](https://www.npmjs.com/) (geralmente instalado com o Node.js)
+- [yarn](https://yarnpkg.com/) 
 - [Git](https://git-scm.com/)
 
 ### ⚙️ Instalação e Configuração
