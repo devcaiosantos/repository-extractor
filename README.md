@@ -37,7 +37,7 @@ Para executar este projeto, você precisará ter instalado em sua máquina:
 1.  **Clone o repositório:**
 
     ```bash
-    git clone [https://github.com/devcaiosantos/repository-extractor.git](https://github.com/devcaiosantos/repository-extractor.git)
+    git clone https://github.com/devcaiosantos/repository-extractor.git
     cd repository-extractor
     ```
 
@@ -54,7 +54,7 @@ Para executar este projeto, você precisará ter instalado em sua máquina:
       ```bash
       cp env.example .env
       ```
-    - Abra o arquivo `.env` e adicione seu token do GitHub.
+    - Abra o arquivo `.env` e preencha o valor de cada variável, em especial, o token do github.
       ```ini
       # .env
       GITHUB_TOKEN=ghp_SEU_TOKEN_AQUI
