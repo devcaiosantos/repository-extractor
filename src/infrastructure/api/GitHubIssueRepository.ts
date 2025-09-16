@@ -6,6 +6,7 @@ import {
   Issue,
   DomainLabel,
   DomainAssignee,
+  RepositoryInfo,
 } from "../../domain/entities/Issue";
 import { RepositoryIdentifier } from "../../domain/value-objects/RepositoryIdentifier";
 import {
@@ -17,6 +18,60 @@ import { GitHubApiIssue } from "./types/GitHubApi";
 
 export class GitHubIssueRepository implements IIssueRepository {
   private readonly baseUrl = process.env.GITHUB_BASE_URL;
+
+  public async findRepositoryInfo(
+    identifier: RepositoryIdentifier,
+    token: string
+  ): Promise<RepositoryInfo> {
+    try {
+      const repoResponse = await axios.get(
+        `${this.baseUrl}/repos/${identifier.toString()}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/vnd.github.v3+json",
+          },
+        }
+      );
+
+      const searchResponse = await axios.get(
+        `${
+          this.baseUrl
+        }/search/issues?q=repo:${identifier.toString()}+type:issue`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/vnd.github.v3+json",
+          },
+        }
+      );
+
+      const repoData = repoResponse.data;
+      const searchData = searchResponse.data;
+
+      return {
+        owner: repoData.owner.login,
+        name: repoData.name,
+        description: repoData.description,
+        url: repoData.html_url,
+        license: repoData.license ? repoData.license.name : null,
+        language: repoData.language,
+        stars: repoData.stargazers_count,
+        forks: repoData.forks_count,
+        openIssuesCount: repoData.open_issues_count,
+        totalIssuesCount: searchData.total_count,
+        createdAt: repoData.created_at,
+        updatedAt: repoData.updated_at,
+      };
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        this.handleAxiosError(error, identifier);
+      }
+      throw new Error(
+        `Ocorreu um erro inesperado ao buscar as informações do repositório: ${error}`
+      );
+    }
+  }
 
   public async findAll(
     identifier: RepositoryIdentifier,
@@ -60,6 +115,42 @@ export class GitHubIssueRepository implements IIssueRepository {
       }
     }
     return allIssues;
+  }
+
+  public async findPage(
+    identifier: RepositoryIdentifier,
+    token: string,
+    page: number,
+    perPage: number
+  ): Promise<Issue[]> {
+    try {
+      console.log();
+      const response = await axios.get<GitHubApiIssue[]>(
+        `${this.baseUrl}/repos/${identifier.toString()}/issues`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/vnd.github.v3+json",
+          },
+          params: {
+            state: "all",
+            per_page: perPage, // Número máximo permitido pela API do GitHub (100)
+            page: page,
+          },
+        }
+      );
+
+      return response.data
+        .filter((item) => !item.pull_request)
+        .map(this.mapToDomain);
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        this.handleAxiosError(error, identifier);
+      }
+      throw new Error(
+        `Ocorreu um erro inesperado ao buscar as issues: ${error}`
+      );
+    }
   }
 
   /**

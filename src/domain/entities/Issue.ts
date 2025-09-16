@@ -35,3 +35,18 @@ export interface Issue {
   closedBy: string | null;
   stateReason: string | null;
 }
+
+export interface RepositoryInfo {
+  owner: string;
+  name: string;
+  description: string | null;
+  url: string;
+  license: string | null;
+  language: string | null;
+  stars: number;
+  forks: number;
+  openIssuesCount: number;
+  totalIssuesCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}

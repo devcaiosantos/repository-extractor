@@ -1,4 +1,4 @@
-import { Issue } from "../entities/Issue";
+import { Issue, RepositoryInfo } from "../entities/Issue";
 import { RepositoryIdentifier } from "../value-objects/RepositoryIdentifier";
 
 /**
@@ -17,4 +17,14 @@ export interface IIssueRepository {
    * @returns Uma promessa que resolve para um array de Issues.
    */
   findAll(identifier: RepositoryIdentifier, token: string): Promise<Issue[]>;
+  findPage(
+    identifier: RepositoryIdentifier,
+    token: string,
+    page: number,
+    perPage: number
+  ): Promise<Issue[]>;
+  findRepositoryInfo(
+    identifier: RepositoryIdentifier,
+    token: string
+  ): Promise<RepositoryInfo>;
 }

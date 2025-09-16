@@ -1,6 +1,9 @@
 import * as path from "path";
 import * as fs from "fs/promises";
-import { IIssueExporter } from "../../domain/services/IIssueExporter";
+import {
+  IIssueExporter,
+  ExportMode,
+} from "../../domain/services/IIssueExporter";
 import { Issue } from "../../domain/entities/Issue";
 import { RepositoryIdentifier } from "../../domain/value-objects/RepositoryIdentifier";
 
@@ -14,7 +17,8 @@ export class CsvIssueExporter implements IIssueExporter {
 
   public async export(
     issues: Issue[],
-    identifier: RepositoryIdentifier
+    identifier: RepositoryIdentifier,
+    mode: ExportMode = "replace"
   ): Promise<string> {
     if (issues.length === 0) {
       console.log("Nenhuma issue para exportar. Nenhum arquivo foi criado.");
@@ -25,6 +29,11 @@ export class CsvIssueExporter implements IIssueExporter {
 
     const safeFileName = `${identifier.toString().replace("/", "-")}.csv`;
     const filePath = path.join(this.outputDir, safeFileName);
+
+    const fileExists = await fs
+      .access(filePath)
+      .then(() => true)
+      .catch(() => false);
 
     // 1. Definir os cabeçalhos das colunas
     const headers = [
@@ -46,10 +55,10 @@ export class CsvIssueExporter implements IIssueExporter {
     const rows = issues.map((issue) => [
       issue.id,
       issue.number,
-      issue.title,
+      this.sanitizeField(issue.title),
       issue.state,
       issue.author,
-      issue.assignees.map((a) => a.login).join("; "), // Usar ';' para evitar conflito com a vírgula do CSV
+      issue.assignees.map((a) => a.login).join("; "),
       issue.labels.map((l) => l.name).join("; "),
       issue.createdAt.toISOString(),
       issue.updatedAt.toISOString(),
@@ -58,16 +67,21 @@ export class CsvIssueExporter implements IIssueExporter {
       issue.url,
     ]);
 
-    // 3. Montar o conteúdo final do CSV
-    const headerRow = headers.map((h) => this.sanitizeField(h)).join(",");
     const dataRows = rows.map((row) =>
       row.map((field) => this.sanitizeField(field)).join(",")
     );
 
-    const csvContent = [headerRow, ...dataRows].join("\n");
+    if (mode === "append" && fileExists) {
+      const newCsvContent = dataRows.join("\n");
+      await fs.appendFile(filePath, "\n" + newCsvContent, "utf-8");
+    } else {
+      // 3. Montar o conteúdo final do CSV
+      const headerRow = headers.map((h) => this.sanitizeField(h)).join(",");
+      const csvContent = [headerRow, ...dataRows].join("\n");
 
-    // 4. Escrever o conteúdo no arquivo de forma assíncrona
-    await fs.writeFile(filePath, csvContent, "utf-8");
+      // 4. Escrever o conteúdo no arquivo de forma assíncrona
+      await fs.writeFile(filePath, csvContent, "utf-8");
+    }
 
     return filePath;
   }

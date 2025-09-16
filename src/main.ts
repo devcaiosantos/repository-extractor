@@ -7,6 +7,7 @@ import {
 import { ExportIssuesToCsvUseCase } from "./application/ExportIssuesToCsvUseCase";
 import { CsvIssueExporter } from "./infrastructure/exporters/CsvIssueExporter";
 import * as dotenv from "dotenv";
+import { ExportIssuesToCsvIncrementallyUseCase } from "./application/ExportIssuesToCsvIncrementallyUseCase";
 dotenv.config();
 
 function getEnvVariable(name: string): string | undefined {
@@ -35,7 +36,7 @@ async function main() {
   const gitHubRepository = new GitHubIssueRepository();
   const csvExporter = new CsvIssueExporter();
 
-  const exportIssuesUseCase = new ExportIssuesToCsvUseCase(
+  const exportIssuesUseCase = new ExportIssuesToCsvIncrementallyUseCase(
     gitHubRepository,
     csvExporter
   );

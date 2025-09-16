@@ -43,4 +43,5 @@ export interface GitHubApiIssue {
   author_association: string;
   closed_by: GitHubApiUser | null;
   state_reason: "completed" | "not_planned" | "reopened" | null;
+  pull_request?: object; // Presença deste campo indica que é um PR, não uma issue
 }
