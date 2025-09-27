@@ -44,7 +44,7 @@ Para executar este projeto, você precisará ter instalado em sua máquina:
 2.  **Instale as dependências:**
 
     ```bash
-    yarn add
+    yarn
     ```
 
 3.  **Configure as Variáveis de Ambiente:**
