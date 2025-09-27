@@ -42,7 +42,8 @@ export class ExportIssuesToCsvUseCase {
     console.log("Iniciando exportação para arquivo CSV...");
     const outputPath = await this.issueExporter.export(
       issues,
-      repositoryIdentifier
+      repositoryIdentifier,
+      "replace"
     );
 
     return outputPath;

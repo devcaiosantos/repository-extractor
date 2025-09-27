@@ -34,6 +34,7 @@ export interface Issue {
   assignees: DomainAssignee[];
   closedBy: string | null;
   stateReason: string | null;
+  pullRequest?: object;
 }
 
 export interface RepositoryInfo {

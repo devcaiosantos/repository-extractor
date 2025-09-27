@@ -7,6 +7,7 @@ export interface ExportIssuesInput {
   owner: string;
   repoName: string;
   token: string;
+  startPage: number;
 }
 
 /**
@@ -20,7 +21,7 @@ export class ExportIssuesToCsvIncrementallyUseCase {
     private readonly issueExporter: IIssueExporter
   ) {}
 
-  public async execute(input: ExportIssuesInput): Promise<void> {
+  public async execute(input: ExportIssuesInput): Promise<string> {
     if (!input.token || input.token.trim() === "") {
       throw new Error("O token não pode ser vazio.");
     }
@@ -35,31 +36,48 @@ export class ExportIssuesToCsvIncrementallyUseCase {
     );
 
     console.log("\nIniciando a exportação das issues...\n");
-    let currentPage = 1;
+    let currentPage = input.startPage;
     let totalExported = 0;
     const progressBar = new cliProgress.SingleBar(
-      {},
+      {
+        format:
+          "Progresso |{bar}| {percentage}% || {value}/{total} Issues || Página: {page}",
+      },
       cliProgress.Presets.shades_classic
     );
-    progressBar.start(repositoryInfo.totalIssuesCount, 0);
+    progressBar.start(repositoryInfo.totalIssuesCount, 0, {
+      page: currentPage,
+    });
     while (true) {
       const issues = await this.issueRepository.findPage(
         repositoryIdentifier,
         input.token,
         currentPage,
-        5
+        100
       );
 
       if (issues.length === 0) {
         break;
       }
 
-      totalExported += issues.length;
-      progressBar.update(totalExported);
+      const filteredIssues = issues.filter((issue) => !issue.pullRequest);
+
+      await this.issueExporter.export(
+        filteredIssues,
+        repositoryIdentifier,
+        "append"
+      );
+      totalExported += filteredIssues.length;
+      progressBar.update(totalExported, { page: currentPage });
 
       currentPage++;
-      await this.issueExporter.export(issues, repositoryIdentifier, "append");
-      setTimeout(() => {}, 1000); // Aguardar 1 segundo entre as páginas para evitar rate limiting
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Aguardar 1 segundo entre as páginas para evitar rate limiting
     }
+
+    progressBar.stop();
+
+    return (
+      repositoryIdentifier.owner + "_" + repositoryIdentifier.repoName + ".csv"
+    );
   }
 }

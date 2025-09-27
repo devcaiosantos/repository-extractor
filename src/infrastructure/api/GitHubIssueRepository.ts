@@ -140,9 +140,7 @@ export class GitHubIssueRepository implements IIssueRepository {
         }
       );
 
-      return response.data
-        .filter((item) => !item.pull_request)
-        .map(this.mapToDomain);
+      return response.data.map(this.mapToDomain);
     } catch (error) {
       if (error instanceof AxiosError) {
         this.handleAxiosError(error, identifier);
@@ -187,6 +185,7 @@ export class GitHubIssueRepository implements IIssueRepository {
       ),
       closedBy: apiIssue.closed_by ? apiIssue.closed_by.login : null,
       stateReason: apiIssue.state_reason ?? null,
+      pullRequest: apiIssue.pull_request ? apiIssue.pull_request : undefined,
     };
   }
 

@@ -14,24 +14,36 @@ function getEnvVariable(name: string): string | undefined {
   return process.env[name];
 }
 
-const githubToken = getEnvVariable("GITHUB_TOKEN");
-const githubBaseUrl = getEnvVariable("GITHUB_BASE_URL");
-const ownerRepo = getEnvVariable("OWNER_REPO");
-const nameRepo = getEnvVariable("NAME_REPO");
+function parseArgs(args: string[]): { [key: string]: string } {
+  const parsedArgs: { [key: string]: string } = {};
+  args.slice(2).forEach((arg) => {
+    if (arg.startsWith("--")) {
+      const [key, value] = arg.substring(2).split("=");
+      if (key && value) {
+        parsedArgs[key] = value;
+      }
+    }
+  });
+  return parsedArgs;
+}
 
 async function main() {
-  if (!githubToken || !githubBaseUrl || !ownerRepo || !nameRepo) {
+  const cliArgs = parseArgs(process.argv);
+
+  const input = {
+    owner: cliArgs.owner || getEnvVariable("OWNER_REPO") || "",
+    repoName: cliArgs.repo || getEnvVariable("NAME_REPO") || "",
+    token: cliArgs.token || getEnvVariable("GITHUB_TOKEN") || "",
+    startPage:
+      Number(cliArgs.start_page) || Number(getEnvVariable("START_PAGE")) || 1,
+  };
+
+  if (!input.owner || !input.repoName || !input.token || !input.startPage) {
     console.error(
-      "❌ Variáveis de ambiente necessárias não estão definidas. Por favor, verifique o arquivo .env."
+      "❌ Informações necessárias não fornecidas. Use as flags (--owner, --repo, --token, --start_page) ou defina as variáveis de ambiente no arquivo .env."
     );
     process.exit(1);
   }
-
-  const input = {
-    owner: process.env.OWNER_REPO || "",
-    repoName: process.env.NAME_REPO || "",
-    token: process.env.GITHUB_TOKEN || "",
-  };
 
   const gitHubRepository = new GitHubIssueRepository();
   const csvExporter = new CsvIssueExporter();

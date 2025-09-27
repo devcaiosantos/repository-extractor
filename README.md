@@ -29,7 +29,7 @@ Siga estas instruções para obter uma cópia do projeto e executá-lo em sua m�
 Para executar este projeto, você precisará ter instalado em sua máquina:
 
 - [Node.js](https://nodejs.org/) (versão 18.x ou superior)
-- [yarn](https://yarnpkg.com/) 
+- [yarn](https://yarnpkg.com/)
 - [Git](https://git-scm.com/)
 
 ### ⚙️ Instalação e Configuração
@@ -54,7 +54,7 @@ Para executar este projeto, você precisará ter instalado em sua máquina:
       ```bash
       cp env.example .env
       ```
-    - Abra o arquivo `.env` e preencha o valor de cada variável, em especial, o token do github.
+    - Abra o arquivo `.env` e preencha o valor de cada variável, em especial, o github token.
       ```ini
       # .env
       GITHUB_TOKEN=ghp_SEU_TOKEN_AQUI
@@ -65,30 +65,34 @@ Para executar este projeto, você precisará ter instalado em sua máquina:
 
 ## 💻 Executando a Aplicação
 
-### Modo de Desenvolvimento
+Você pode executar a aplicação de duas formas: passando os parâmetros via linha de comando (CLI) ou usando as variáveis de ambiente configuradas no arquivo `.env`. A CLI tem prioridade.
 
-Para executar a aplicação em modo de desenvolvimento com compilação em tempo real:
+### 1. Via Linha de Comando (Recomendado)
+
+Passe o dono do repositório, o nome e o seu token como flags. Este método sobrescreve qualquer valor definido no arquivo `.env`.
 
 ```bash
-yarn dev
+# Formato
+yarn dev --owner=<DONO> --repo=<REPOSITORIO> --token=<SEU_TOKEN> --start_page=<PÁGINA_INICIAL>
+
+# Exemplo prático
+yarn dev --owner=microsoft --repo=vscode --token=ghp_xxxxxxxxxxxx --start_page=1
 ```
 
-### Modo de Produção
+Para a versão compilada, use `yarn start`:
 
-Para um ambiente de produção, o ideal é primeiro compilar o código para JavaScript e depois executá-lo.
+```bash
+yarn start --owner=microsoft --repo=vscode --token=ghp_xxxxxxxxxxxx --start_page=1
+```
 
-1.  **Compile o projeto:**
+### 2. Via Variáveis de Ambiente
 
-    ```bash
-    yarn build
-    ```
+Se você não passar as flags, a aplicação usará os valores definidos no seu arquivo `.env`. Certifique-se de que as variáveis `OWNER_REPO`, `NAME_REPO`, `GITHUB_TOKEN` e `START_PAGE` estão preenchidas.
 
-    Este comando criará uma pasta `./dist` com o código JavaScript otimizado.
-
-2.  **Execute a versão compilada:**
-    ```bash
-    yarn start
-    ```
+```bash
+# A aplicação buscará as informações no arquivo .env
+yarn dev
+```
 
 ### ✅ Resultado
 
