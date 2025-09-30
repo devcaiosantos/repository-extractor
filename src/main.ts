@@ -1,4 +1,4 @@
-import { GitHubIssueRepository } from "./infrastructure/api/GitHubIssueRepository";
+import { GitHubIssueRepository } from "./infrastructure/api/github-restapi/GitHubIssueRepository";
 import {
   ApiRateLimitError,
   InvalidTokenError,
@@ -8,6 +8,7 @@ import { ExportIssuesToCsvUseCase } from "./application/ExportIssuesToCsvUseCase
 import { CsvIssueExporter } from "./infrastructure/exporters/CsvIssueExporter";
 import * as dotenv from "dotenv";
 import { ExportIssuesToCsvIncrementallyUseCase } from "./application/ExportIssuesToCsvIncrementallyUseCase";
+import { GitHubGraphqlIssueRepository } from "./infrastructure/api/github-graphql/GithubGrapqlIssueRepository";
 dotenv.config();
 
 function getEnvVariable(name: string): string | undefined {
@@ -48,8 +49,14 @@ async function main() {
   const gitHubRepository = new GitHubIssueRepository();
   const csvExporter = new CsvIssueExporter();
 
-  const exportIssuesUseCase = new ExportIssuesToCsvIncrementallyUseCase(
-    gitHubRepository,
+  // const exportIssuesUseCase = new ExportIssuesToCsvIncrementallyUseCase(
+  //   gitHubRepository,
+  //   csvExporter
+  // );
+
+  const gitHubGraphqlRepository = new GitHubGraphqlIssueRepository();
+  const exportIssuesUseCase = new ExportIssuesToCsvUseCase(
+    gitHubGraphqlRepository,
     csvExporter
   );
 

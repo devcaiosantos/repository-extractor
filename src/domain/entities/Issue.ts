@@ -19,7 +19,7 @@ export interface DomainAssignee {
  * Continuamos a omitir campos que são detalhes de infraestrutura (ex: node_id, ..._url).
  */
 export interface Issue {
-  id: number;
+  id: number | string;
   number: number;
   title: string;
   body: string | null;

@@ -24,7 +24,7 @@ export interface GitHubApiLabel {
 }
 
 export interface GitHubApiIssue {
-  id: number;
+  id: number | string;
   node_id: string;
   url: string;
   html_url: string;
@@ -43,5 +43,57 @@ export interface GitHubApiIssue {
   author_association: string;
   closed_by: GitHubApiUser | null;
   state_reason: "completed" | "not_planned" | "reopened" | null;
-  pull_request?: object; // Presença deste campo indica que é um PR, não uma issue
+  pull_request?: {
+    url: string;
+    html_url: string;
+    diff_url: string;
+    patch_url: string;
+  };
+}
+
+export interface PageInfo {
+  hasNextPage: boolean;
+  endCursor: string | null;
+}
+
+export interface GraphQLIssue {
+  id: string;
+  number: number;
+  title: string;
+  body: string;
+  state: "OPEN" | "CLOSED";
+  url: string;
+  createdAt: string;
+  updatedAt: string;
+  closedAt: string | null;
+  comments: {
+    totalCount: number;
+  };
+  author: {
+    login: string;
+  } | null;
+  labels: {
+    nodes: { name: string; color: string }[];
+  };
+  assignees: {
+    nodes: { login: string; avatarUrl: string }[];
+  };
+  closedBy: {
+    login: string;
+  } | null;
+  stateReason: "completed" | "not_planned" | "reopened" | null;
+}
+
+export interface GraphQLSearchResponse {
+  repository: {
+    issues: {
+      pageInfo: PageInfo;
+      nodes: GraphQLIssue[];
+    };
+  };
+  rateLimit: {
+    cost: number;
+    remaining: number;
+    resetAt: string;
+  };
 }

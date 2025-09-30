@@ -1,20 +1,20 @@
 // /src/infrastructure/api/GitHubIssueRepository.ts
 
 import axios, { AxiosError } from "axios";
-import { IIssueRepository } from "../../domain/repositories/IIssueRepository";
+import { IIssueRepository } from "../../../domain/repositories/IIssueRepository";
 import {
   Issue,
   DomainLabel,
   DomainAssignee,
   RepositoryInfo,
-} from "../../domain/entities/Issue";
-import { RepositoryIdentifier } from "../../domain/value-objects/RepositoryIdentifier";
+} from "../../../domain/entities/Issue";
+import { RepositoryIdentifier } from "../../../domain/value-objects/RepositoryIdentifier";
 import {
   ApiRateLimitError,
   InvalidTokenError,
   RepositoryNotFoundError,
-} from "../errors/apiErrors";
-import { GitHubApiIssue } from "./types/GitHubApi";
+} from "../../errors/apiErrors";
+import { GitHubApiIssue, GraphQLSearchResponse } from "../types/GitHubApi";
 
 export class GitHubIssueRepository implements IIssueRepository {
   private readonly baseUrl = process.env.GITHUB_BASE_URL;
@@ -124,7 +124,6 @@ export class GitHubIssueRepository implements IIssueRepository {
     perPage: number
   ): Promise<Issue[]> {
     try {
-      console.log();
       const response = await axios.get<GitHubApiIssue[]>(
         `${this.baseUrl}/repos/${identifier.toString()}/issues`,
         {
@@ -143,6 +142,7 @@ export class GitHubIssueRepository implements IIssueRepository {
       return response.data.map(this.mapToDomain);
     } catch (error) {
       if (error instanceof AxiosError) {
+        console.log(error.response?.headers);
         this.handleAxiosError(error, identifier);
       }
       throw new Error(

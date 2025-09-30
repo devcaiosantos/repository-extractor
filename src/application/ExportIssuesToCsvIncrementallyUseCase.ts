@@ -71,7 +71,7 @@ export class ExportIssuesToCsvIncrementallyUseCase {
       progressBar.update(totalExported, { page: currentPage });
 
       currentPage++;
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Aguardar 1 segundo entre as páginas para evitar rate limiting
+      //await new Promise((resolve) => setTimeout(resolve, 1000)); // Aguardar 1 segundo entre as páginas para evitar rate limiting
     }
 
     progressBar.stop();
