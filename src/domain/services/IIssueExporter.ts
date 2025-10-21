@@ -21,5 +21,5 @@ export interface IIssueExporter {
     issues: Issue[],
     identifier: RepositoryIdentifier,
     mode: ExportMode
-  ): Promise<string>;
+  ): Promise<void>;
 }

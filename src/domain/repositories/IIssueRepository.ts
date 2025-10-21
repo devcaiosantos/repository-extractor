@@ -16,7 +16,11 @@ export interface IIssueRepository {
    * @param token O token de autenticação para acessar a API.
    * @returns Uma promessa que resolve para um array de Issues.
    */
-  findAll(identifier: RepositoryIdentifier, token: string): Promise<Issue[]>;
+  findAll(
+    identifier: RepositoryIdentifier,
+    token: string,
+    processPage: (issues: Issue[]) => Promise<void>
+  ): Promise<void>;
   findPage(
     identifier: RepositoryIdentifier,
     token: string,

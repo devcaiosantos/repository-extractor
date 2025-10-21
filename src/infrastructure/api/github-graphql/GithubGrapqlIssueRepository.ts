@@ -77,8 +77,9 @@ export class GitHubGraphqlIssueRepository implements IIssueRepository {
 
   async findAll(
     identifier: RepositoryIdentifier,
-    token: string
-  ): Promise<Issue[]> {
+    token: string,
+    processPage: (issues: Issue[]) => Promise<void>
+  ): Promise<void> {
     const httpLink = createHttpLink({
       uri: this.apiUrl,
       headers: {
@@ -100,7 +101,6 @@ export class GitHubGraphqlIssueRepository implements IIssueRepository {
     console.log(`Total de issues encontradas: ${totalIssues}`);
     console.log("Iniciando extração com GraphQL...\n");
 
-    // Configurar barra de progresso
     const progressBar = new cliProgress.SingleBar(
       {
         format:
@@ -111,7 +111,7 @@ export class GitHubGraphqlIssueRepository implements IIssueRepository {
 
     progressBar.start(totalIssues, 0, { page: 1 });
 
-    let allIssues: Issue[] = [];
+    let processedIssuesCount = 0;
     let hasNextPage = true;
     let endCursor: string | null = null;
     let currentPage = 1;
@@ -192,9 +192,10 @@ export class GitHubGraphqlIssueRepository implements IIssueRepository {
         const issuesFromPage = issuesNode.nodes.map((node: GraphQLIssueNode) =>
           this.mapGraphQLToDomain(node)
         );
-        allIssues = [...allIssues, ...issuesFromPage];
+        await processPage(issuesFromPage);
 
-        progressBar.update(allIssues.length, { page: currentPage });
+        processedIssuesCount += issuesFromPage.length;
+        progressBar.update(processedIssuesCount, { page: currentPage });
 
         hasNextPage = pageInfo.hasNextPage;
         endCursor = pageInfo.endCursor;
@@ -209,11 +210,24 @@ export class GitHubGraphqlIssueRepository implements IIssueRepository {
 
     progressBar.stop();
     console.log("\n✅ Extração GraphQL concluída com sucesso!");
-    console.log(`Total de issues coletadas: ${allIssues.length}`);
-
-    return allIssues;
+    console.log(`Total de issues coletadas: ${processedIssuesCount}`);
   }
 
+  findPage(
+    identifier: RepositoryIdentifier,
+    token: string,
+    page: number,
+    perPage: number
+  ): Promise<Issue[]> {
+    throw new Error("Method not implemented.");
+  }
+
+  findRepositoryInfo(
+    identifier: RepositoryIdentifier,
+    token: string
+  ): Promise<RepositoryInfo> {
+    throw new Error("Method not implemented.");
+  }
   private async getTotalIssuesCount(
     client: ApolloClient,
     identifier: RepositoryIdentifier
@@ -251,21 +265,6 @@ export class GitHubGraphqlIssueRepository implements IIssueRepository {
       );
       return 1000;
     }
-  }
-  findPage(
-    identifier: RepositoryIdentifier,
-    token: string,
-    page: number,
-    perPage: number
-  ): Promise<Issue[]> {
-    throw new Error("Method not implemented.");
-  }
-
-  findRepositoryInfo(
-    identifier: RepositoryIdentifier,
-    token: string
-  ): Promise<RepositoryInfo> {
-    throw new Error("Method not implemented.");
   }
 
   private mapGraphQLToDomain(gqlIssue: GraphQLIssueNode): Issue {

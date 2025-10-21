@@ -19,12 +19,7 @@ export class CsvIssueExporter implements IIssueExporter {
     issues: Issue[],
     identifier: RepositoryIdentifier,
     mode: ExportMode = "replace"
-  ): Promise<string> {
-    if (issues.length === 0) {
-      console.log("Nenhuma issue para exportar. Nenhum arquivo foi criado.");
-      return "Nenhuma issue encontrada.";
-    }
-
+  ): Promise<void> {
     await fs.mkdir(this.outputDir, { recursive: true });
 
     const safeFileName = `${identifier.toString().replace("/", "-")}.csv`;
@@ -83,7 +78,7 @@ export class CsvIssueExporter implements IIssueExporter {
       await fs.writeFile(filePath, csvContent, "utf-8");
     }
 
-    return filePath;
+    console.log(filePath);
   }
 
   /**

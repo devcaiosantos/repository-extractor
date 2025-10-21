@@ -1,6 +1,7 @@
 import { IIssueRepository } from "../domain/repositories/IIssueRepository";
 import { RepositoryIdentifier } from "../domain/value-objects/RepositoryIdentifier";
 import { IIssueExporter } from "../domain/services/IIssueExporter";
+import { Issue } from "../domain/entities/Issue";
 
 export interface ExportIssuesInput {
   owner: string;
@@ -19,7 +20,7 @@ export class ExportIssuesToCsvUseCase {
     private readonly issueExporter: IIssueExporter
   ) {}
 
-  public async execute(input: ExportIssuesInput): Promise<string> {
+  public async execute(input: ExportIssuesInput): Promise<void> {
     if (!input.token || input.token.trim() === "") {
       throw new Error("O token não pode ser vazio.");
     }
@@ -31,21 +32,30 @@ export class ExportIssuesToCsvUseCase {
     console.log(
       `Buscando issues para o repositório: ${repositoryIdentifier.toString()}...`
     );
-    const issues = await this.issueRepository.findAll(
-      repositoryIdentifier,
-      input.token
-    );
-    console.log(
-      `Extração concluída. Total de issues encontradas: ${issues.length}`
-    );
 
-    console.log("Iniciando exportação para arquivo CSV...");
     const outputPath = await this.issueExporter.export(
-      issues,
+      [], // Array vazio para apenas criar o arquivo com cabeçalho
       repositoryIdentifier,
-      "replace"
+      "replace" // Garante que o arquivo seja novo
     );
 
-    return outputPath;
+    // Define a função de callback que será executada para cada página de issues
+    const processPage = async (issues: Issue[]): Promise<void> => {
+      if (issues.length > 0) {
+        await this.issueExporter.export(
+          issues,
+          repositoryIdentifier,
+          "append" // Adiciona os dados ao arquivo existente
+        );
+      }
+    };
+
+    await this.issueRepository.findAll(
+      repositoryIdentifier,
+      input.token,
+      processPage
+    );
+
+    console.log(outputPath);
   }
 }

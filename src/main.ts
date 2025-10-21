@@ -7,8 +7,8 @@ import {
 import { ExportIssuesToCsvUseCase } from "./application/ExportIssuesToCsvUseCase";
 import { CsvIssueExporter } from "./infrastructure/exporters/CsvIssueExporter";
 import * as dotenv from "dotenv";
-import { ExportIssuesToCsvIncrementallyUseCase } from "./application/ExportIssuesToCsvIncrementallyUseCase";
 import { GitHubGraphqlIssueRepository } from "./infrastructure/api/github-graphql/GithubGrapqlIssueRepository";
+import { PostgresIssueExporter } from "./infrastructure/exporters/PostgresIssueExporter";
 dotenv.config();
 
 function getEnvVariable(name: string): string | undefined {
@@ -46,13 +46,8 @@ async function main() {
     process.exit(1);
   }
 
-  const gitHubRepository = new GitHubIssueRepository();
   const csvExporter = new CsvIssueExporter();
-
-  // const exportIssuesUseCase = new ExportIssuesToCsvIncrementallyUseCase(
-  //   gitHubRepository,
-  //   csvExporter
-  // );
+  const postgresExporter = new PostgresIssueExporter();
 
   const gitHubGraphqlRepository = new GitHubGraphqlIssueRepository();
   const exportIssuesUseCase = new ExportIssuesToCsvUseCase(
@@ -60,11 +55,15 @@ async function main() {
     csvExporter
   );
 
-  try {
-    const resultPath = await exportIssuesUseCase.execute(input);
+  const exportIssues2UseCase = new ExportIssuesToCsvUseCase(
+    gitHubGraphqlRepository,
+    postgresExporter
+  );
 
+  try {
+    await exportIssuesUseCase.execute(input);
+    await exportIssues2UseCase.execute(input);
     console.log(`\n✅ Processo concluído com sucesso!`);
-    console.log(`Arquivo salvo em: ${resultPath}`);
   } catch (error) {
     console.error(`\n❌ Falha no processo.`);
     if (
