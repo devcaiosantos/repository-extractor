@@ -12,12 +12,6 @@ export interface DomainAssignee {
   avatarUrl: string;
 }
 
-/**
- * Entidade APRIMORADA que representa uma Issue.
- * Esta versão é mais rica e contém mais informações de negócio,
- * baseadas no payload real da API.
- * Continuamos a omitir campos que são detalhes de infraestrutura (ex: node_id, ..._url).
- */
 export interface Issue {
   id: number | string;
   number: number;
@@ -35,6 +29,8 @@ export interface Issue {
   closedBy: string | null;
   stateReason: string | null;
   pullRequest?: object;
+  repositoryName: string;
+  repositoryOwner: string;
 }
 
 export interface RepositoryInfo {

@@ -1,5 +1,5 @@
 import { Pool } from "pg";
-import { Issue } from "../../domain/entities/Issue";
+import { Issue } from "../../domain/entities/main";
 import {
   IIssueExporter,
   ExportMode,
@@ -41,13 +41,10 @@ export class PostgresIssueExporter implements IIssueExporter {
       }
 
       if (issues.length > 0) {
-        // A implementação real da inserção em lote seria mais complexa,
-        // envolvendo a inserção de labels, assignees e as tabelas de junção.
-        // Este é um exemplo simplificado para a tabela 'issues'.
         for (const issue of issues) {
           const query = `
-            INSERT INTO issues (id, number, title, body, author, state, url, created_at, updated_at, closed_at, comments_count, repository_name)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            INSERT INTO issues (id, number, title, body, author, state, url, created_at, updated_at, closed_at, comments_count, repository_owner, repository_name)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             ON CONFLICT (id) DO UPDATE SET
               title = EXCLUDED.title,
               state = EXCLUDED.state,
@@ -66,7 +63,8 @@ export class PostgresIssueExporter implements IIssueExporter {
             issue.updatedAt,
             issue.closedAt,
             issue.commentsCount,
-            identifier.toString(),
+            issue.repositoryOwner,
+            issue.repositoryName,
           ]);
         }
       }

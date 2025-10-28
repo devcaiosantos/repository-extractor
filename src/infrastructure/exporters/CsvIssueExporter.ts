@@ -4,7 +4,7 @@ import {
   IIssueExporter,
   ExportMode,
 } from "../../domain/services/IIssueExporter";
-import { Issue } from "../../domain/entities/Issue";
+import { Issue } from "../../domain/entities/main";
 import { RepositoryIdentifier } from "../../domain/value-objects/RepositoryIdentifier";
 
 /**

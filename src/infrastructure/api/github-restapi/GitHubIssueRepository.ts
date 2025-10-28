@@ -7,7 +7,7 @@ import {
   DomainLabel,
   DomainAssignee,
   RepositoryInfo,
-} from "../../../domain/entities/Issue";
+} from "../../../domain/entities/main";
 import { RepositoryIdentifier } from "../../../domain/value-objects/RepositoryIdentifier";
 import {
   ApiRateLimitError,

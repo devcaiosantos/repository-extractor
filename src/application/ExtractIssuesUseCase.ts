@@ -1,5 +1,5 @@
 import { IIssueRepository } from "../domain/repositories/IIssueRepository";
-import { Issue } from "../domain/entities/Issue";
+import { Issue } from "../domain/entities/main";
 import { RepositoryIdentifier } from "../domain/value-objects/RepositoryIdentifier";
 
 // DTO (Data Transfer Object) para a entrada do caso de uso.

@@ -1,98 +1,38 @@
+import {
+  ApolloClient,
+  createHttpLink,
+  gql,
+  HttpLink,
+  InMemoryCache,
+} from "@apollo/client";
 import { Issue, RepositoryInfo } from "../../../domain/entities/main";
-import { IIssueRepository } from "../../../domain/repositories/IIssueRepository";
 import { RepositoryIdentifier } from "../../../domain/value-objects/RepositoryIdentifier";
+import { GetRepositoryInfo, GetRepositoryIssues } from "./querys";
+import { IGetRepositoryInfoResponse } from "./types/repository";
+import { IRepoRepository } from "../../../domain/repositories/IRepoRepository";
+import * as cliProgress from "cli-progress";
+import {
+  GraphQLAssignee,
+  GraphQLIssueNode,
+  GraphQLIssuesResponse,
+  GraphQLLabel,
+  GraphQLPageInfo,
+  GraphQLRepositoryResponse,
+} from "./types/issue";
 import {
   ApiRateLimitError,
   InvalidTokenError,
   RepositoryNotFoundError,
 } from "../../errors/apiErrors";
-import {
-  ApolloClient,
-  InMemoryCache,
-  gql,
-  createHttpLink,
-} from "@apollo/client/core";
-import * as cliProgress from "cli-progress";
 
-interface GraphQLAuthor {
-  login: string;
-}
-
-interface GraphQLLabel {
-  name: string;
-  color: string;
-}
-
-interface GraphQLAssignee {
-  login: string;
-  avatarUrl: string;
-}
-
-interface GraphQLIssueNode {
-  id: string;
-  number: number;
-  title: string;
-  body: string | null;
-  state: "OPEN" | "CLOSED";
-  url: string;
-  createdAt: string;
-  updatedAt: string;
-  closedAt: string | null;
-  comments: {
-    totalCount: number;
-  };
-  author: GraphQLAuthor | null;
-  labels: {
-    nodes: GraphQLLabel[];
-  };
-  assignees: {
-    nodes: GraphQLAssignee[];
-  };
-  stateReason: "completed" | "not_planned" | "reopened" | null;
-}
-
-interface GraphQLPageInfo {
-  hasNextPage: boolean;
-  endCursor: string | null;
-}
-
-interface GraphQLIssuesResponse {
-  pageInfo: GraphQLPageInfo;
-  nodes: GraphQLIssueNode[];
-}
-
-interface GraphQLRepositoryResponse {
-  repository: {
-    issues: GraphQLIssuesResponse;
-  };
-  rateLimit: {
-    cost: number;
-    remaining: number;
-    resetAt: string;
-  };
-}
-
-export class GitHubGraphqlIssueRepository implements IIssueRepository {
-  private readonly apiUrl = "https://api.github.com/graphql";
-
-  async findAll(
+export class GitHubGraphqlRepository implements IRepoRepository {
+  async findAllIssues(
     identifier: RepositoryIdentifier,
     token: string,
     processPage: (issues: Issue[]) => Promise<void>
   ): Promise<void> {
-    const httpLink = createHttpLink({
-      uri: this.apiUrl,
-      headers: {
-        authorization: `Bearer ${token}`,
-      },
-    });
+    const client = this.createApolloClient(token);
 
-    const client = new ApolloClient({
-      link: httpLink,
-      cache: new InMemoryCache(),
-    });
-
-    // Primeiro, buscar informações do repositório para obter o total de issues
     console.log(
       `Buscando informações do repositório ${identifier.toString()}...`
     );
@@ -116,58 +56,7 @@ export class GitHubGraphqlIssueRepository implements IIssueRepository {
     let endCursor: string | null = null;
     let currentPage = 1;
 
-    const GET_ISSUES_QUERY = gql`
-      query GetIssues($owner: String!, $repo: String!, $cursor: String) {
-        repository(owner: $owner, name: $repo) {
-          issues(
-            first: 100
-            after: $cursor
-            states: [OPEN, CLOSED]
-            orderBy: { field: CREATED_AT, direction: ASC }
-          ) {
-            pageInfo {
-              hasNextPage
-              endCursor
-            }
-            nodes {
-              id
-              number
-              title
-              body
-              state
-              url
-              createdAt
-              updatedAt
-              closedAt
-              comments {
-                totalCount
-              }
-              author {
-                login
-              }
-              labels(first: 20) {
-                nodes {
-                  name
-                  color
-                }
-              }
-              assignees(first: 10) {
-                nodes {
-                  login
-                  avatarUrl
-                }
-              }
-              stateReason
-            }
-          }
-        }
-        rateLimit {
-          cost
-          remaining
-          resetAt
-        }
-      }
-    `;
+    const GET_ISSUES_QUERY = GetRepositoryIssues;
 
     while (hasNextPage) {
       try {
@@ -190,7 +79,7 @@ export class GitHubGraphqlIssueRepository implements IIssueRepository {
         const pageInfo: GraphQLPageInfo = issuesNode.pageInfo;
 
         const issuesFromPage = issuesNode.nodes.map((node: GraphQLIssueNode) =>
-          this.mapGraphQLToDomain(node)
+          this.mapIssueGraphQLToDomain(identifier, node)
         );
         await processPage(issuesFromPage);
 
@@ -213,20 +102,51 @@ export class GitHubGraphqlIssueRepository implements IIssueRepository {
     console.log(`Total de issues coletadas: ${processedIssuesCount}`);
   }
 
-  findPage(
+  findAllPullRequests(
     identifier: RepositoryIdentifier,
-    token: string,
-    page: number,
-    perPage: number
-  ): Promise<Issue[]> {
+    token: string
+    //processPage:
+  ): Promise<void> {
     throw new Error("Method not implemented.");
   }
 
-  findRepositoryInfo(
+  async findRepositoryInfo(
     identifier: RepositoryIdentifier,
     token: string
   ): Promise<RepositoryInfo> {
-    throw new Error("Method not implemented.");
+    const apolloClient = this.createApolloClient(token);
+
+    const { data } = await apolloClient.query<IGetRepositoryInfoResponse>({
+      query: GetRepositoryInfo,
+      variables: {
+        owner: identifier.owner,
+        repo: identifier.repoName,
+      },
+      fetchPolicy: "no-cache",
+    });
+
+    if (!data || !data.repository) {
+      throw new Error(
+        `Repositório ${identifier.toString()} não encontrado ou inacessível.`
+      );
+    }
+
+    const repo = data.repository;
+
+    return {
+      owner: repo.owner.login,
+      name: repo.name,
+      description: repo.description,
+      url: repo.url,
+      license: repo.licenseInfo?.name ?? null,
+      language: repo.primaryLanguage?.name ?? null,
+      stars: repo.stargazerCount,
+      forks: repo.forkCount,
+      openIssuesCount: repo.openIssues.totalCount,
+      totalIssuesCount: repo.totalIssues.totalCount,
+      createdAt: new Date(repo.createdAt),
+      updatedAt: new Date(repo.updatedAt),
+    };
   }
 
   private async getTotalIssuesCount(
@@ -268,7 +188,25 @@ export class GitHubGraphqlIssueRepository implements IIssueRepository {
     }
   }
 
-  private mapGraphQLToDomain(gqlIssue: GraphQLIssueNode): Issue {
+  private createApolloClient(token: string): ApolloClient {
+    const httpLink = new HttpLink({
+      uri: `${process.env.GITHUB_BASE_URL}/graphql`,
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    });
+
+    const client = new ApolloClient({
+      link: httpLink,
+      cache: new InMemoryCache(),
+    });
+    return client;
+  }
+
+  private mapIssueGraphQLToDomain(
+    identifier: RepositoryIdentifier,
+    gqlIssue: GraphQLIssueNode
+  ): Issue {
     const convertedState = gqlIssue.state === "OPEN" ? "open" : "closed";
     return {
       id: gqlIssue.id,
@@ -293,6 +231,8 @@ export class GitHubGraphqlIssueRepository implements IIssueRepository {
       closedBy: null,
       stateReason: gqlIssue.stateReason,
       pullRequest: undefined,
+      repositoryName: identifier.repoName,
+      repositoryOwner: identifier.owner,
     };
   }
 

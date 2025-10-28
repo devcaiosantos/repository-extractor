@@ -1,4 +1,4 @@
-import { Issue } from "../entities/Issue";
+import { Issue } from "../entities/main";
 import { RepositoryIdentifier } from "../value-objects/RepositoryIdentifier";
 
 /**

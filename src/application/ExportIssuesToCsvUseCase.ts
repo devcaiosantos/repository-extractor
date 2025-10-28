@@ -1,7 +1,7 @@
 import { IIssueRepository } from "../domain/repositories/IIssueRepository";
 import { RepositoryIdentifier } from "../domain/value-objects/RepositoryIdentifier";
 import { IIssueExporter } from "../domain/services/IIssueExporter";
-import { Issue } from "../domain/entities/Issue";
+import { Issue } from "../domain/entities/main";
 
 export interface ExportIssuesInput {
   owner: string;

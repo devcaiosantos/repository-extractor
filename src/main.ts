@@ -4,11 +4,11 @@ import {
   InvalidTokenError,
   RepositoryNotFoundError,
 } from "./infrastructure/errors/apiErrors";
-import { ExportIssuesToCsvUseCase } from "./application/ExportIssuesToCsvUseCase";
-import { CsvIssueExporter } from "./infrastructure/exporters/CsvIssueExporter";
 import * as dotenv from "dotenv";
-import { GitHubGraphqlIssueRepository } from "./infrastructure/api/github-graphql/GithubGrapqlIssueRepository";
 import { PostgresIssueExporter } from "./infrastructure/exporters/PostgresIssueExporter";
+import { ExtractDataFromRepo } from "./application/ExtractIRepoData";
+import { GitHubGraphqlRepository } from "./infrastructure/api/github-graphql/GithubGraphqlRepository";
+import { PostgresRepoExporter } from "./infrastructure/exporters/PostgresRepoExporter";
 dotenv.config();
 
 function getEnvVariable(name: string): string | undefined {
@@ -46,24 +46,19 @@ async function main() {
     process.exit(1);
   }
 
-  const csvExporter = new CsvIssueExporter();
-  const postgresExporter = new PostgresIssueExporter();
+  const RepoExporter = new PostgresRepoExporter();
+  const IssueExporter = new PostgresIssueExporter();
+  const gitHubGraphqlRepository = new GitHubGraphqlRepository();
 
-  const gitHubGraphqlRepository = new GitHubGraphqlIssueRepository();
-  const exportIssuesUseCase = new ExportIssuesToCsvUseCase(
+  const exportRepoData = new ExtractDataFromRepo(
     gitHubGraphqlRepository,
-    csvExporter
-  );
-
-  const exportIssues2UseCase = new ExportIssuesToCsvUseCase(
-    gitHubGraphqlRepository,
-    postgresExporter
+    RepoExporter,
+    IssueExporter
   );
 
   try {
-    await exportIssuesUseCase.execute(input);
-    await exportIssues2UseCase.execute(input);
-    console.log(`\n✅ Processo concluído com sucesso!`);
+    await exportRepoData.extractRepoInfoAndSave(input);
+    await exportRepoData.extractIssuesAndSave(input);
   } catch (error) {
     console.error(`\n❌ Falha no processo.`);
     if (
