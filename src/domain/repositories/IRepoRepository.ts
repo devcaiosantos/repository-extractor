@@ -1,4 +1,4 @@
-import { Issue, RepositoryInfo } from "../entities/main";
+import { Comment, Issue, PullRequest, RepositoryInfo } from "../entities/main";
 import { RepositoryIdentifier } from "../value-objects/RepositoryIdentifier";
 
 export interface IRepoRepository {
@@ -10,12 +10,14 @@ export interface IRepoRepository {
   findAllIssues(
     identifier: RepositoryIdentifier,
     token: string,
-    processPage: (issues: Issue[]) => Promise<void>
+    processPage: (issues: Issue[]) => Promise<void>,
+    processCommentsPage: (comments: Comment[]) => Promise<void>
   ): Promise<void>;
 
   findAllPullRequests(
     identifier: RepositoryIdentifier,
-    token: string
-    //processPage: (pullRequests: Issue[]) => Promise<void>
+    token: string,
+    processPage: (pullRequests: PullRequest[]) => Promise<void>,
+    processCommentsPage: (comments: Comment[]) => Promise<void>
   ): Promise<void>;
 }

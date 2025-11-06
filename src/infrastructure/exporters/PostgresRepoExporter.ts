@@ -11,7 +11,6 @@ export class PostgresRepoExporter implements IRepoExporter {
   private pool: Pool;
 
   constructor() {
-    // A configuração do pool deve vir de variáveis de ambiente para segurança
     this.pool = new Pool({
       user: process.env.DB_USER,
       host: process.env.DB_HOST,

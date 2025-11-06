@@ -1,3 +1,5 @@
+import { GraphQLCommentNode } from "./comment";
+
 export interface GraphQLAuthor {
   login: string;
 }
@@ -24,6 +26,8 @@ export interface GraphQLIssueNode {
   closedAt: string | null;
   comments: {
     totalCount: number;
+    nodes: GraphQLCommentNode[];
+    pageInfo: GraphQLPageInfo;
   };
   author: GraphQLAuthor | null;
   labels: {
@@ -33,6 +37,16 @@ export interface GraphQLIssueNode {
     nodes: GraphQLAssignee[];
   };
   stateReason: "completed" | "not_planned" | "reopened" | null;
+  timelineItems: {
+    nodes: (
+      | {
+          actor: {
+            login: string;
+          } | null;
+        }
+      | {}
+    )[];
+  };
 }
 
 export interface GraphQLPageInfo {

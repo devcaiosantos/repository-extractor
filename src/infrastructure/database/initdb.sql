@@ -86,3 +86,63 @@ COMMENT ON CONSTRAINT fk_issues_to_repositories ON public.issues IS 'Garante que
 CREATE INDEX IF NOT EXISTS idx_issues_repository ON public.issues (repository_owner, repository_name);
 CREATE INDEX IF NOT EXISTS idx_issues_author ON public.issues (author);
 CREATE INDEX IF NOT EXISTS idx_issues_state ON public.issues (state);
+
+
+-- =================================================================
+-- Tabela: public.pull_requests
+-- =================================================================
+
+-- Definição do tipo ENUM para o estado do Pull Request
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'pull_request_state') THEN
+        CREATE TYPE pull_request_state AS ENUM ('OPEN', 'CLOSED', 'MERGED');
+    END IF;
+END$$;
+
+-- Tabela: public.pull_requests
+-- Armazena os pull requests de um repositório.
+-- Possui uma chave estrangeira que a conecta à tabela 'repositories'.
+
+CREATE TABLE IF NOT EXISTS public.pull_requests
+(
+    id                 VARCHAR(255) PRIMARY KEY,
+    "number"           INTEGER NOT NULL,
+    title              TEXT NOT NULL,
+    body               TEXT,
+    author             VARCHAR(255),
+    state              pull_request_state NOT NULL,
+    url                VARCHAR(2048) NOT NULL,
+    is_draft           BOOLEAN NOT NULL,
+    created_at         TIMESTAMPTZ NOT NULL,
+    updated_at         TIMESTAMPTZ NOT NULL,
+    closed_at          TIMESTAMPTZ,
+    merged_at          TIMESTAMPTZ,
+    commits_count      INTEGER NOT NULL,
+    additions          INTEGER NOT NULL,
+    deletions          INTEGER NOT NULL,
+    changed_files      INTEGER NOT NULL,
+    base_ref_name      VARCHAR(255) NOT NULL,
+    head_ref_name      VARCHAR(255) NOT NULL,
+
+    -- Colunas para a Chave Estrangeira
+    repository_owner   VARCHAR(255) NOT NULL,
+    repository_name    VARCHAR(255) NOT NULL,
+
+    -- Constraints
+    CONSTRAINT fk_pull_requests_to_repositories
+        FOREIGN KEY (repository_owner, repository_name)
+        REFERENCES public.repositories (owner, name)
+        ON DELETE CASCADE -- Se um repositório for deletado, seus PRs também serão.
+);
+
+COMMENT ON TABLE public.pull_requests IS 'Armazena os pull requests de repositórios do GitHub.';
+COMMENT ON COLUMN public.pull_requests.id IS 'ID global do Pull Request no GitHub (Node ID).';
+COMMENT ON CONSTRAINT fk_pull_requests_to_repositories ON public.pull_requests IS 'Garante que cada pull request pertence a um repositório válido na tabela repositories.';
+
+
+-- Índices para otimização de consultas na tabela de pull_requests
+CREATE INDEX IF NOT EXISTS idx_pr_repo ON public.pull_requests(repository_owner, repository_name);
+CREATE INDEX IF NOT EXISTS idx_pr_state ON public.pull_requests(state);
+CREATE INDEX IF NOT EXISTS idx_pr_author ON public.pull_requests(author);
+CREATE INDEX IF NOT EXISTS idx_pr_created_at ON public.pull_requests(created_at);

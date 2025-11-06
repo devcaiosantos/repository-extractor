@@ -75,8 +75,22 @@ export const GetRepositoryIssues = gql`
           createdAt
           updatedAt
           closedAt
-          comments {
+          comments(first: 100) {
             totalCount
+            nodes {
+              id
+              body
+              author {
+                login
+              }
+              url
+              createdAt
+              updatedAt
+            }
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
           }
           author {
             login
@@ -94,6 +108,15 @@ export const GetRepositoryIssues = gql`
             }
           }
           stateReason
+          timelineItems(itemTypes: [CLOSED_EVENT], last: 1) {
+            nodes {
+              ... on ClosedEvent {
+                actor {
+                  login
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -101,6 +124,89 @@ export const GetRepositoryIssues = gql`
       cost
       remaining
       resetAt
+    }
+  }
+`;
+
+export const GetRepositoryPullRequests = gql`
+  query GetRepositoryPullRequests(
+    $owner: String!
+    $repo: String!
+    $cursor: String
+  ) {
+    repository(owner: $owner, name: $repo) {
+      pullRequests(
+        first: 50
+        after: $cursor
+        orderBy: { field: CREATED_AT, direction: ASC }
+        states: [OPEN, CLOSED, MERGED]
+      ) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        totalCount
+        nodes {
+          id
+          number
+          title
+          body
+          state
+          url
+          isDraft
+          createdAt
+          updatedAt
+          closedAt
+          mergedAt
+          comments(first: 100) {
+            totalCount
+            nodes {
+              id
+              body
+              author {
+                login
+              }
+              url
+              createdAt
+              updatedAt
+            }
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+          }
+          author {
+            ... on User {
+              login
+            }
+          }
+          labels(first: 20) {
+            nodes {
+              name
+              color
+            }
+          }
+          assignees(first: 10) {
+            nodes {
+              login
+              avatarUrl
+            }
+          }
+          commits {
+            totalCount
+          }
+          additions
+          deletions
+          changedFiles
+          baseRefName
+          headRefName
+          closingIssuesReferences(first: 1) {
+            nodes {
+              id
+            }
+          }
+        }
+      }
     }
   }
 `;

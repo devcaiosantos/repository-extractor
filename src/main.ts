@@ -1,4 +1,3 @@
-import { GitHubIssueRepository } from "./infrastructure/api/github-restapi/GitHubIssueRepository";
 import {
   ApiRateLimitError,
   InvalidTokenError,
@@ -9,6 +8,8 @@ import { PostgresIssueExporter } from "./infrastructure/exporters/PostgresIssueE
 import { ExtractDataFromRepo } from "./application/ExtractIRepoData";
 import { GitHubGraphqlRepository } from "./infrastructure/api/github-graphql/GithubGraphqlRepository";
 import { PostgresRepoExporter } from "./infrastructure/exporters/PostgresRepoExporter";
+import { PostgresPullRequestExporter } from "./infrastructure/exporters/PostgresPullRequestExporter";
+import { PostgresCommentExporter } from "./infrastructure/exporters/PostgresCommentExporter";
 dotenv.config();
 
 function getEnvVariable(name: string): string | undefined {
@@ -48,17 +49,22 @@ async function main() {
 
   const RepoExporter = new PostgresRepoExporter();
   const IssueExporter = new PostgresIssueExporter();
+  const PullRequestExporter = new PostgresPullRequestExporter();
+  const CommentExporter = new PostgresCommentExporter();
   const gitHubGraphqlRepository = new GitHubGraphqlRepository();
 
   const exportRepoData = new ExtractDataFromRepo(
     gitHubGraphqlRepository,
     RepoExporter,
-    IssueExporter
+    IssueExporter,
+    PullRequestExporter,
+    CommentExporter
   );
 
   try {
     await exportRepoData.extractRepoInfoAndSave(input);
     await exportRepoData.extractIssuesAndSave(input);
+    await exportRepoData.extractPullRequestsAndSave(input);
   } catch (error) {
     console.error(`\n❌ Falha no processo.`);
     if (

@@ -11,7 +11,6 @@ export interface GitHubApiUser {
   node_id: string;
   avatar_url: string;
   html_url: string;
-  // ... outros campos do usuário podem ser adicionados se necessário
 }
 
 export interface GitHubApiLabel {

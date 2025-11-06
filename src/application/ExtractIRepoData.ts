@@ -1,7 +1,13 @@
-import { Issue, RepositoryInfo } from "../domain/entities/main";
-import { IIssueRepository } from "../domain/repositories/IIssueRepository";
+import {
+  Issue,
+  PullRequest,
+  RepositoryInfo,
+  Comment,
+} from "../domain/entities/main";
 import { IRepoRepository } from "../domain/repositories/IRepoRepository";
+import { ICommentExporter } from "../domain/services/ICommentExporter";
 import { IIssueExporter } from "../domain/services/IIssueExporter";
+import { IPullRequestExporter } from "../domain/services/IPullRequestExporter";
 import { IRepoExporter } from "../domain/services/RepoExporter";
 import { RepositoryIdentifier } from "../domain/value-objects/RepositoryIdentifier";
 
@@ -15,7 +21,9 @@ export class ExtractDataFromRepo {
   constructor(
     private readonly repoRepository: IRepoRepository,
     private readonly repoExporter: IRepoExporter,
-    private readonly issuesExporter: IIssueExporter
+    private readonly issuesExporter: IIssueExporter,
+    private readonly pullRequestExporter: IPullRequestExporter,
+    private readonly commentExporter: ICommentExporter
   ) {}
 
   async extractRepoInfoAndSave(input: ExtractInput): Promise<void> {
@@ -59,6 +67,16 @@ export class ExtractDataFromRepo {
       }
     };
 
+    const commentConsumer = async (comments: Comment[]): Promise<void> => {
+      if (comments.length > 0) {
+        await this.commentExporter.export(
+          comments,
+          repositoryIdentifier,
+          "append"
+        );
+      }
+    };
+
     console.log(
       "Iniciando extração e salvamento incremental no banco de dados..."
     );
@@ -66,9 +84,54 @@ export class ExtractDataFromRepo {
     await this.repoRepository.findAllIssues(
       repositoryIdentifier,
       input.token,
-      issueConsumer
+      issueConsumer,
+      commentConsumer
     );
 
     console.log("\n✅ Processo de salvamento no banco de dados concluído!");
+  }
+
+  async extractPullRequestsAndSave(input: ExtractInput): Promise<void> {
+    const repositoryIdentifier = new RepositoryIdentifier(
+      input.owner,
+      input.repoName
+    );
+
+    await this.pullRequestExporter.export([], repositoryIdentifier, "replace");
+
+    const pullRequestConsumer = async (
+      pullRequests: PullRequest[]
+    ): Promise<void> => {
+      if (pullRequests.length > 0) {
+        await this.pullRequestExporter.export(
+          pullRequests,
+          repositoryIdentifier,
+          "append"
+        );
+      }
+    };
+
+    const commentConsumer = async (comments: Comment[]): Promise<void> => {
+      if (comments.length > 0) {
+        await this.commentExporter.export(
+          comments,
+          repositoryIdentifier,
+          "append"
+        );
+      }
+    };
+
+    console.log(
+      "\nIniciando extração e salvamento de Pull Requests no banco de dados..."
+    );
+
+    await this.repoRepository.findAllPullRequests(
+      repositoryIdentifier,
+      input.token,
+      pullRequestConsumer,
+      commentConsumer
+    );
+
+    console.log("\n✅ Processo de salvamento de Pull Requests concluído!");
   }
 }

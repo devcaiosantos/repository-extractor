@@ -13,7 +13,6 @@ export class PostgresIssueExporter implements IIssueExporter {
   private pool: Pool;
 
   constructor() {
-    // A configuração do pool deve vir de variáveis de ambiente para segurança
     this.pool = new Pool({
       user: process.env.DB_USER,
       host: process.env.DB_HOST,
@@ -34,7 +33,6 @@ export class PostgresIssueExporter implements IIssueExporter {
       await client.query("BEGIN");
 
       if (mode === "replace" && issues.length === 0) {
-        // Modo especial para limpar o repositório antes de começar a inserção incremental
         await client.query("DELETE FROM issues WHERE repository_name = $1", [
           identifier.toString(),
         ]);
@@ -43,13 +41,14 @@ export class PostgresIssueExporter implements IIssueExporter {
       if (issues.length > 0) {
         for (const issue of issues) {
           const query = `
-            INSERT INTO issues (id, number, title, body, author, state, url, created_at, updated_at, closed_at, comments_count, repository_owner, repository_name)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            INSERT INTO issues (id, number, title, body, author, state, url, created_at, updated_at, closed_at, comments_count, repository_owner, repository_name, closed_by)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             ON CONFLICT (id) DO UPDATE SET
               title = EXCLUDED.title,
               state = EXCLUDED.state,
               updated_at = EXCLUDED.updated_at,
-              closed_at = EXCLUDED.closed_at;
+              closed_at = EXCLUDED.closed_at,
+              closed_by = EXCLUDED.closed_by;
           `;
           await client.query(query, [
             issue.id,
@@ -65,6 +64,7 @@ export class PostgresIssueExporter implements IIssueExporter {
             issue.commentsCount,
             issue.repositoryOwner,
             issue.repositoryName,
+            issue.closedBy,
           ]);
         }
       }
