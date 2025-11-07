@@ -10,6 +10,8 @@ import { GitHubGraphqlRepository } from "./infrastructure/api/github-graphql/Git
 import { PostgresRepoExporter } from "./infrastructure/exporters/PostgresRepoExporter";
 import { PostgresPullRequestExporter } from "./infrastructure/exporters/PostgresPullRequestExporter";
 import { PostgresCommentExporter } from "./infrastructure/exporters/PostgresCommentExporter";
+import { PostgresLabelExporter } from "./infrastructure/exporters/PostgresLabelExporter";
+import { PostgresCommitExporter } from "./infrastructure/exporters/PostgresCommitExporter";
 dotenv.config();
 
 function getEnvVariable(name: string): string | undefined {
@@ -36,13 +38,11 @@ async function main() {
     owner: cliArgs.owner || getEnvVariable("OWNER_REPO") || "",
     repoName: cliArgs.repo || getEnvVariable("NAME_REPO") || "",
     token: cliArgs.token || getEnvVariable("GITHUB_TOKEN") || "",
-    startPage:
-      Number(cliArgs.start_page) || Number(getEnvVariable("START_PAGE")) || 1,
   };
 
-  if (!input.owner || !input.repoName || !input.token || !input.startPage) {
+  if (!input.owner || !input.repoName || !input.token) {
     console.error(
-      "❌ Informações necessárias não fornecidas. Use as flags (--owner, --repo, --token, --start_page) ou defina as variáveis de ambiente no arquivo .env."
+      "❌ Informações necessárias não fornecidas. Use as flags (--owner, --repo, --token) ou defina as variáveis de ambiente no arquivo .env."
     );
     process.exit(1);
   }
@@ -51,6 +51,8 @@ async function main() {
   const IssueExporter = new PostgresIssueExporter();
   const PullRequestExporter = new PostgresPullRequestExporter();
   const CommentExporter = new PostgresCommentExporter();
+  const LabelExporter = new PostgresLabelExporter();
+  const CommitExporter = new PostgresCommitExporter();
   const gitHubGraphqlRepository = new GitHubGraphqlRepository();
 
   const exportRepoData = new ExtractDataFromRepo(
@@ -58,7 +60,9 @@ async function main() {
     RepoExporter,
     IssueExporter,
     PullRequestExporter,
-    CommentExporter
+    CommentExporter,
+    LabelExporter,
+    CommitExporter
   );
 
   try {

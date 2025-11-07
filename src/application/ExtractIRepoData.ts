@@ -3,10 +3,13 @@ import {
   PullRequest,
   RepositoryInfo,
   Comment,
+  Commit,
 } from "../domain/entities/main";
 import { IRepoRepository } from "../domain/repositories/IRepoRepository";
 import { ICommentExporter } from "../domain/services/ICommentExporter";
+import { ICommitExporter } from "../domain/services/ICommitExporter";
 import { IIssueExporter } from "../domain/services/IIssueExporter";
+import { ILabelExporter } from "../domain/services/ILabelExporter";
 import { IPullRequestExporter } from "../domain/services/IPullRequestExporter";
 import { IRepoExporter } from "../domain/services/RepoExporter";
 import { RepositoryIdentifier } from "../domain/value-objects/RepositoryIdentifier";
@@ -23,7 +26,9 @@ export class ExtractDataFromRepo {
     private readonly repoExporter: IRepoExporter,
     private readonly issuesExporter: IIssueExporter,
     private readonly pullRequestExporter: IPullRequestExporter,
-    private readonly commentExporter: ICommentExporter
+    private readonly commentExporter: ICommentExporter,
+    private readonly labelExporter: ILabelExporter,
+    private readonly commitExporter: ICommitExporter
   ) {}
 
   async extractRepoInfoAndSave(input: ExtractInput): Promise<void> {
@@ -64,6 +69,7 @@ export class ExtractDataFromRepo {
           repositoryIdentifier,
           "append"
         );
+        await this.labelExporter.exportFromIssues(issues);
       }
     };
 
@@ -108,6 +114,7 @@ export class ExtractDataFromRepo {
           repositoryIdentifier,
           "append"
         );
+        await this.labelExporter.exportFromPullRequests(pullRequests);
       }
     };
 
@@ -121,6 +128,12 @@ export class ExtractDataFromRepo {
       }
     };
 
+    const commitConsumer = async (commits: Commit[]): Promise<void> => {
+      if (commits.length > 0) {
+        await this.commitExporter.export(commits, repositoryIdentifier);
+      }
+    };
+
     console.log(
       "\nIniciando extração e salvamento de Pull Requests no banco de dados..."
     );
@@ -129,7 +142,8 @@ export class ExtractDataFromRepo {
       repositoryIdentifier,
       input.token,
       pullRequestConsumer,
-      commentConsumer
+      commentConsumer,
+      commitConsumer
     );
 
     console.log("\n✅ Processo de salvamento de Pull Requests concluído!");

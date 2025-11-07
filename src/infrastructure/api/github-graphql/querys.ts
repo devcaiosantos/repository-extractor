@@ -136,7 +136,7 @@ export const GetRepositoryPullRequests = gql`
   ) {
     repository(owner: $owner, name: $repo) {
       pullRequests(
-        first: 50
+        first: 20 # Reduzido para evitar timeouts devido à complexidade da query
         after: $cursor
         orderBy: { field: CREATED_AT, direction: ASC }
         states: [OPEN, CLOSED, MERGED]
@@ -192,8 +192,26 @@ export const GetRepositoryPullRequests = gql`
               avatarUrl
             }
           }
-          commits {
+          commits(first: 100) {
             totalCount
+            nodes {
+              commit {
+                oid
+                message
+                author {
+                  name
+                  date
+                }
+                committer {
+                  name
+                  date
+                }
+                url
+                additions
+                deletions
+                changedFiles: changedFilesIfAvailable
+              }
+            }
           }
           additions
           deletions

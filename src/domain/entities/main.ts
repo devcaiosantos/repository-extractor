@@ -86,3 +86,27 @@ export interface Comment {
   issueId?: string;
   pullRequestId?: string;
 }
+
+export interface CommitFile {
+  filePath: string;
+  status: "added" | "modified" | "removed" | "renamed";
+  additions: number;
+  deletions: number;
+  patch: string | null;
+}
+
+export interface Commit {
+  sha: string;
+  message: string;
+  authorName: string | null;
+  authoredDate: Date | null;
+  committerName: string | null;
+  committedDate: Date | null;
+  url: string;
+  additions: number;
+  deletions: number;
+  totalChangedFiles: number;
+  pullRequestId: string | null;
+  repositoryOwner: string;
+  repositoryName: string;
+}

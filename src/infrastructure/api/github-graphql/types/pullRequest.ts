@@ -1,4 +1,5 @@
 import { GraphQLCommentNode } from "./comment";
+import { GraphQLCommitNode } from "./commit";
 import {
   GraphQLAssignee,
   GraphQLAuthor,
@@ -32,6 +33,7 @@ export interface GraphQLPullRequestNode {
   };
   commits: {
     totalCount: number;
+    nodes: GraphQLCommitNode[];
   };
   additions: number;
   deletions: number;

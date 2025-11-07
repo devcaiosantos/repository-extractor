@@ -10,6 +10,8 @@ import {
   PullRequest,
   RepositoryInfo,
   Comment,
+  Commit,
+  CommitFile,
 } from "../../../domain/entities/main";
 import { RepositoryIdentifier } from "../../../domain/value-objects/RepositoryIdentifier";
 import {
@@ -38,6 +40,7 @@ import {
   GraphQLPullRequestRepoResponse,
 } from "./types/pullRequest";
 import { GraphQLCommentNode } from "./types/comment";
+import { GraphQLCommitFileNode, GraphQLCommitNode } from "./types/commit";
 
 export class GitHubGraphqlRepository implements IRepoRepository {
   async findAllIssues(
@@ -136,7 +139,8 @@ export class GitHubGraphqlRepository implements IRepoRepository {
     identifier: RepositoryIdentifier,
     token: string,
     processPage: (pullRequests: PullRequest[]) => Promise<void>,
-    processCommentsPage: (comments: Comment[]) => Promise<void>
+    processCommentsPage: (comments: Comment[]) => Promise<void>,
+    processCommitsPage: (commits: Commit[]) => Promise<void>
   ): Promise<void> {
     const client = this.createApolloClient(token);
 
@@ -185,7 +189,7 @@ export class GitHubGraphqlRepository implements IRepoRepository {
 
         const prsNode = result.data.repository.pullRequests;
         const pageInfo: GraphQLPageInfo = prsNode.pageInfo;
-
+        const commitsFromPage: Commit[] = [];
         const prsFromPage: PullRequest[] = [];
         const commentsFromPage: Comment[] = [];
 
@@ -201,11 +205,21 @@ export class GitHubGraphqlRepository implements IRepoRepository {
             );
             commentsFromPage.push(...comments);
           }
+
+          if (node.commits.nodes.length > 0) {
+            const commits = node.commits.nodes.map((commitNode) =>
+              this.mapCommitGraphQLToDomain(identifier, commitNode, node.id)
+            );
+            commitsFromPage.push(...commits);
+          }
         }
 
         await processPage(prsFromPage);
         if (commentsFromPage.length > 0) {
           await processCommentsPage(commentsFromPage);
+        }
+        if (commitsFromPage.length > 0) {
+          await processCommitsPage(commitsFromPage);
         }
 
         processedCount += prsFromPage.length;
@@ -438,6 +452,45 @@ export class GitHubGraphqlRepository implements IRepoRepository {
       repositoryName: identifier.repoName,
       issueId: parent.issueId,
       pullRequestId: parent.pullRequestId,
+    };
+  }
+
+  private mapCommitGraphQLToDomain(
+    identifier: RepositoryIdentifier,
+    gqlCommit: GraphQLCommitNode,
+    pullRequestId: string
+  ): Commit {
+    const commitData = gqlCommit.commit;
+    return {
+      sha: commitData.oid,
+      message: commitData.message,
+      authorName: commitData.author?.name ?? null,
+      authoredDate: commitData.author?.date
+        ? new Date(commitData.author.date)
+        : null,
+      committerName: commitData.committer?.name ?? null,
+      committedDate: commitData.committer?.date
+        ? new Date(commitData.committer.date)
+        : null,
+      url: commitData.url,
+      additions: commitData.additions,
+      deletions: commitData.deletions,
+      totalChangedFiles: commitData.changedFiles,
+      pullRequestId: pullRequestId,
+      repositoryOwner: identifier.owner,
+      repositoryName: identifier.repoName,
+    };
+  }
+
+  private mapCommitFileGraphQLToDomain(
+    gqlFile: GraphQLCommitFileNode
+  ): CommitFile {
+    return {
+      filePath: gqlFile.path,
+      status: gqlFile.changeType.toLowerCase() as CommitFile["status"],
+      additions: gqlFile.additions,
+      deletions: gqlFile.deletions,
+      patch: gqlFile.patch,
     };
   }
 
