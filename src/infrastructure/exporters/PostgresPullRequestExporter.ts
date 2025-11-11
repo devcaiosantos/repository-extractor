@@ -75,6 +75,31 @@ export class PostgresPullRequestExporter implements IPullRequestExporter {
             associated_issue_id = EXCLUDED.associated_issue_id;
         `;
 
+        // se PR referencia uma issue, verifique se a issue existe.
+        // Se não existir, defina associated_issue_id como NULL para evitar violação de FK.
+        let assocIssueId = pr.associatedIssueId;
+        if (assocIssueId) {
+          try {
+            const exists = await client.query(
+              "SELECT 1 FROM issues WHERE id = $1",
+              [assocIssueId]
+            );
+            if (exists.rowCount === 0) {
+              console.warn(
+                `Issue referenciada pelo PR ${pr.number} não encontrada (id=${assocIssueId}). Definindo associated_issue_id=null.`
+              );
+              assocIssueId = null;
+            }
+          } catch (checkErr) {
+            // Se a verificação falhar por algum motivo, registre e continue com assocIssueId como nulo
+            console.warn(
+              `Falha ao verificar existência da issue ${assocIssueId}:`,
+              checkErr
+            );
+            assocIssueId = null;
+          }
+        }
+
         await client.query(query, [
           pr.id,
           pr.number,
@@ -96,7 +121,7 @@ export class PostgresPullRequestExporter implements IPullRequestExporter {
           pr.changedFiles,
           pr.baseRefName,
           pr.headRefName,
-          pr.associatedIssueId,
+          assocIssueId,
         ]);
       }
 
