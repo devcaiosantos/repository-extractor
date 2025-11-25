@@ -11,12 +11,11 @@
     "typescript": "^5.9.2"
   },
   "scripts": {
-    "build": "npm run clean && tsc",
+    "build": "yarn clean && tsc",
     "start": "node dist/main.js",
     "dev": "tsx src/main.ts",
-    "clean": "rimraf dist"
+    "clean": "npx rimraf dist"
   },
-  "type": "module",
   "name": "repository-extractor",
   "version": "1.0.0",
   "main": "./src/main.ts",
@@ -25,6 +24,7 @@
     "@types/axios": "^0.14.4",
     "@types/cli-progress": "^3.11.6",
     "@types/pg": "^8.15.5",
+    "rimraf": "^5.0.10",
     "tsx": "^4.20.5"
   }
 }

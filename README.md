@@ -94,9 +94,13 @@ Para executar este projeto, você precisará ter instalado em sua máquina:
 
 ## 💻 Executando a Aplicação
 
-Você pode executar a aplicação de duas formas: usando as variáveis de ambiente (método principal) ou passando parâmetros via linha de comando para sobrescrever os valores do `.env`.
+Você pode executar a aplicação de duas formas: localmente ou via Docker.
 
-### 1. Via Variáveis de Ambiente (Recomendado)
+### 1. Localmente
+
+Este método requer que você tenha o Node.js e o PostgreSQL instalados e configurados na sua máquina.
+
+#### Via Variáveis de Ambiente (Recomendado)
 
 Este é o método padrão. Certifique-se de que seu arquivo `.env` está corretamente configurado com o repositório alvo e as credenciais.
 
@@ -105,7 +109,7 @@ Este é o método padrão. Certifique-se de que seu arquivo `.env` está correta
 yarn dev
 ```
 
-### 2. Via Linha de Comando (Sobrescreve o .env)
+#### Via Linha de Comando (Sobrescreve o .env)
 
 Você pode passar o dono do repositório, o nome e o token como flags. Este método tem prioridade sobre os valores definidos no arquivo `.env`.
 
@@ -122,6 +126,51 @@ Para a versão compilada, use `yarn start`:
 ```bash
 yarn start --owner=facebook --repo=react
 ```
+
+### 2. 🐳 Com Docker (Método Simplificado)
+
+Este é o método mais recomendado, pois gerencia a aplicação e o banco de dados em contêineres isolados, sem a necessidade de instalar o Node.js ou o PostgreSQL localmente.
+
+**Pré-requisitos:**
+
+- [Docker](https://www.docker.com/products/docker-desktop/)
+- [Git](https://git-scm.com/)
+
+**Passos:**
+
+1.  **Clone o repositório e entre no diretório:**
+
+    ```bash
+    git clone https://github.com/devcaiosantos/repository-extractor.git
+    cd repository-extractor
+    ```
+
+2.  **Configure as Variáveis de Ambiente para Docker:**
+
+    - Copie o arquivo `env.example` para `.env`.
+    - Abra o arquivo `.env` e preencha as variáveis do GitHub (`GITHUB_TOKEN`, `OWNER_REPO`, `NAME_REPO`) e a senha do banco (`DB_PASSWORD`).
+    - **Importante:** Para rodar com Docker, a configuração do banco de dados **deve** ser a seguinte, para que o contêiner da aplicação possa se comunicar com o contêiner do banco:
+
+      ```ini
+      # .env (exemplo para Docker)
+
+      # ... (configurações do GitHub) ...
+
+      # Database Connection for Docker
+      DB_HOST=db
+      DB_PORT=5432
+      DB_USER=postgres
+      DB_PASSWORD=sua_senha_secreta
+      DB_NAME=repository_extractor_db
+      ```
+
+      > **Por quê?** No ambiente Docker Compose, `db` é o nome do serviço do banco de dados, e a comunicação entre contêineres ocorre na rede interna, usando a porta padrão `5432` do PostgreSQL.
+
+3.  **Execute o Docker Compose:**
+    Este comando irá construir a imagem da aplicação, iniciar os contêineres, criar o banco de dados automaticamente e iniciar a extração.
+    ```bash
+    docker-compose up --build
+    ```
 
 ### ✅ Resultado
 

@@ -1,0 +1,59 @@
+version: "3.8"
+
+# =================================================================
+# Docker Compose para o Repository Extractor
+#
+# Este arquivo define dois serviços:
+# 1. 'db': O banco de dados PostgreSQL.
+# 2. 'app': A aplicação Node.js que extrai os dados.
+#
+# Para executar:
+# 1. Renomeie 'env.example' para '.env' e preencha as variáveis.
+# 2. Execute: docker-compose up --build
+# =================================================================
+
+services:
+  # --- Serviço do Banco de Dados (PostgreSQL) ---
+  db:
+    image: postgres:14-alpine
+    container_name: repository_extractor_db
+    restart: always
+    # Variáveis de ambiente para configurar o container do PostgreSQL.
+    # Elas são lidas do arquivo .env na raiz do projeto.
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      # Monta o script de inicialização do banco de dados.
+      # Este script será executado na primeira vez que o container for criado.
+      - ./src/infrastructure/database/initdb.sql:/docker-entrypoint-initdb.d/init.sql
+      # Monta um volume para persistir os dados do banco de dados.
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      # Mapeia a porta do container para a porta do host.
+      - "${DB_PORT}:5432"
+    healthcheck:
+      # Verifica se o banco de dados está pronto para aceitar conexões.
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- Serviço da Aplicação (Node.js) ---
+  app:
+    # Constrói a imagem a partir do Dockerfile na raiz do projeto.
+    build: .
+    container_name: repository_extractor_app
+    # Garante que o serviço 'db' esteja pronto antes de iniciar a aplicação.
+    depends_on:
+      db:
+        condition: service_healthy
+    # Passa as variáveis de ambiente do arquivo .env para o container da aplicação.
+    env_file:
+      - .env
+
+# --- Volume para persistência de dados do PostgreSQL ---
+volumes:
+  postgres_data:
+    driver: local
