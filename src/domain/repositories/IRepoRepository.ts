@@ -16,15 +16,20 @@ export interface IRepoRepository {
   findAllIssues(
     identifier: RepositoryIdentifier,
     token: string,
-    processPage: (issues: Issue[]) => Promise<void>,
-    processCommentsPage: (comments: Comment[]) => Promise<void>
+    processPage: (issues: Issue[], newCursor: string | null) => Promise<void>,
+    processCommentsPage: (comments: Comment[]) => Promise<void>,
+    startCursor?: string | null
   ): Promise<void>;
 
   findAllPullRequests(
     identifier: RepositoryIdentifier,
     token: string,
-    processPage: (pullRequests: PullRequest[]) => Promise<void>,
+    processPage: (
+      pullRequests: PullRequest[],
+      newCursor: string | null
+    ) => Promise<void>,
     processCommentsPage: (comments: Comment[]) => Promise<void>,
-    processCommitsPage: (commits: Commit[]) => Promise<void>
+    processCommitsPage: (commits: Commit[]) => Promise<void>,
+    startCursor?: string | null
   ): Promise<void>;
 }

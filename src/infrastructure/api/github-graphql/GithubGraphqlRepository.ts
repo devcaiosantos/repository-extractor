@@ -46,8 +46,9 @@ export class GitHubGraphqlRepository implements IRepoRepository {
   async findAllIssues(
     identifier: RepositoryIdentifier,
     token: string,
-    processPage: (issues: Issue[]) => Promise<void>,
-    processCommentsPage: (comments: Comment[]) => Promise<void>
+    processPage: (issues: Issue[], newCursor: string | null) => Promise<void>,
+    processCommentsPage: (comments: Comment[]) => Promise<void>,
+    startCursor: string | null = null
   ): Promise<void> {
     const client = this.createApolloClient(token);
 
@@ -57,6 +58,9 @@ export class GitHubGraphqlRepository implements IRepoRepository {
     const totalIssues = await this.getTotalIssuesCount(client, identifier);
 
     console.log(`Total de issues encontradas: ${totalIssues}`);
+    if (startCursor) {
+      console.log(`Retomando extração a partir do cursor: ${startCursor}`);
+    }
     console.log("Iniciando extração com GraphQL...\n");
 
     const progressBar = new cliProgress.SingleBar(
@@ -71,7 +75,7 @@ export class GitHubGraphqlRepository implements IRepoRepository {
 
     let processedIssuesCount = 0;
     let hasNextPage = true;
-    let endCursor: string | null = null;
+    let endCursor: string | null = startCursor;
     let currentPage = 1;
 
     const GET_ISSUES_QUERY = GetRepositoryIssues;
@@ -111,7 +115,10 @@ export class GitHubGraphqlRepository implements IRepoRepository {
           }
         }
 
-        await processPage(issuesFromPage);
+        hasNextPage = pageInfo.hasNextPage;
+        endCursor = pageInfo.endCursor;
+
+        await processPage(issuesFromPage, endCursor);
         if (commentsFromPage.length > 0) {
           await processCommentsPage(commentsFromPage);
         }
@@ -119,8 +126,6 @@ export class GitHubGraphqlRepository implements IRepoRepository {
         processedIssuesCount += issuesFromPage.length;
         progressBar.update(processedIssuesCount, { page: currentPage });
 
-        hasNextPage = pageInfo.hasNextPage;
-        endCursor = pageInfo.endCursor;
         currentPage++;
 
         await new Promise((resolve) => setTimeout(resolve, 500));
@@ -138,9 +143,13 @@ export class GitHubGraphqlRepository implements IRepoRepository {
   async findAllPullRequests(
     identifier: RepositoryIdentifier,
     token: string,
-    processPage: (pullRequests: PullRequest[]) => Promise<void>,
+    processPage: (
+      pullRequests: PullRequest[],
+      newCursor: string | null
+    ) => Promise<void>,
     processCommentsPage: (comments: Comment[]) => Promise<void>,
-    processCommitsPage: (commits: Commit[]) => Promise<void>
+    processCommitsPage: (commits: Commit[]) => Promise<void>,
+    startCursor: string | null = null
   ): Promise<void> {
     const client = this.createApolloClient(token);
 
@@ -153,6 +162,9 @@ export class GitHubGraphqlRepository implements IRepoRepository {
     );
 
     console.log(`Total de Pull Requests encontrados: ${totalPullRequests}`);
+    if (startCursor) {
+      console.log(`Retomando extração a partir do cursor: ${startCursor}`);
+    }
     console.log("Iniciando extração com GraphQL...\n");
 
     const progressBar = new cliProgress.SingleBar(
@@ -167,7 +179,7 @@ export class GitHubGraphqlRepository implements IRepoRepository {
 
     let processedCount = 0;
     let hasNextPage = true;
-    let endCursor: string | null = null;
+    let endCursor: string | null = startCursor;
     let currentPage = 1;
 
     while (hasNextPage) {
@@ -214,7 +226,10 @@ export class GitHubGraphqlRepository implements IRepoRepository {
           }
         }
 
-        await processPage(prsFromPage);
+        hasNextPage = pageInfo.hasNextPage;
+        endCursor = pageInfo.endCursor;
+
+        await processPage(prsFromPage, endCursor);
         if (commentsFromPage.length > 0) {
           await processCommentsPage(commentsFromPage);
         }
@@ -225,8 +240,6 @@ export class GitHubGraphqlRepository implements IRepoRepository {
         processedCount += prsFromPage.length;
         progressBar.update(processedCount, { page: currentPage });
 
-        hasNextPage = pageInfo.hasNextPage;
-        endCursor = pageInfo.endCursor;
         currentPage++;
 
         await new Promise((resolve) => setTimeout(resolve, 500));
@@ -479,18 +492,6 @@ export class GitHubGraphqlRepository implements IRepoRepository {
       pullRequestId: pullRequestId,
       repositoryOwner: identifier.owner,
       repositoryName: identifier.repoName,
-    };
-  }
-
-  private mapCommitFileGraphQLToDomain(
-    gqlFile: GraphQLCommitFileNode
-  ): CommitFile {
-    return {
-      filePath: gqlFile.path,
-      status: gqlFile.changeType.toLowerCase() as CommitFile["status"],
-      additions: gqlFile.additions,
-      deletions: gqlFile.deletions,
-      patch: gqlFile.patch,
     };
   }
 

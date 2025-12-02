@@ -12,6 +12,8 @@ import { PostgresPullRequestExporter } from "./infrastructure/exporters/Postgres
 import { PostgresCommentExporter } from "./infrastructure/exporters/PostgresCommentExporter";
 import { PostgresLabelExporter } from "./infrastructure/exporters/PostgresLabelExporter";
 import { PostgresCommitExporter } from "./infrastructure/exporters/PostgresCommitExporter";
+import { PostgresExtractionExporter } from "./infrastructure/exporters/PostgresExtractionExporter";
+import { RepositoryIdentifier } from "./domain/value-objects/RepositoryIdentifier";
 dotenv.config();
 
 function getEnvVariable(name: string): string | undefined {
@@ -47,30 +49,37 @@ async function main() {
     process.exit(1);
   }
 
-  const RepoExporter = new PostgresRepoExporter();
-  const IssueExporter = new PostgresIssueExporter();
-  const PullRequestExporter = new PostgresPullRequestExporter();
-  const CommentExporter = new PostgresCommentExporter();
-  const LabelExporter = new PostgresLabelExporter();
-  const CommitExporter = new PostgresCommitExporter();
+  const repoExporter = new PostgresRepoExporter();
+  const issueExporter = new PostgresIssueExporter();
+  const pullRequestExporter = new PostgresPullRequestExporter();
+  const commentExporter = new PostgresCommentExporter();
+  const labelExporter = new PostgresLabelExporter();
+  const commitExporter = new PostgresCommitExporter();
+  const extractionExporter = new PostgresExtractionExporter(); // Novo
   const gitHubGraphqlRepository = new GitHubGraphqlRepository();
 
   const exportRepoData = new ExtractDataFromRepo(
     gitHubGraphqlRepository,
-    RepoExporter,
-    IssueExporter,
-    PullRequestExporter,
-    CommentExporter,
-    LabelExporter,
-    CommitExporter
+    extractionExporter, // Novo
+    repoExporter,
+    issueExporter,
+    pullRequestExporter,
+    commentExporter,
+    labelExporter,
+    commitExporter
   );
 
+  const repoIdentifier = new RepositoryIdentifier(input.owner, input.repoName);
+  const extraction = await extractionExporter.findOrCreate(repoIdentifier);
+
+  console.log(`Iniciando/Retomando extração para o job: ${extraction.id}`);
+
   try {
-    await exportRepoData.extractRepoInfoAndSave(input);
-    await exportRepoData.extractIssuesAndSave(input);
-    await exportRepoData.extractPullRequestsAndSave(input);
+    await exportRepoData.execute(extraction, input.token);
   } catch (error) {
     console.error(`\n❌ Falha no processo.`);
+    await extractionExporter.logError(extraction.id, error as Error); // Loga o erro no job
+
     if (
       error instanceof RepositoryNotFoundError ||
       error instanceof InvalidTokenError ||

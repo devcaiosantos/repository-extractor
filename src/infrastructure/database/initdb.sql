@@ -281,3 +281,61 @@ CREATE INDEX IF NOT EXISTS idx_commits_pull_request_id ON public.commits(pull_re
 CREATE INDEX IF NOT EXISTS idx_commits_author_name ON public.commits(author_name);
 
 
+-- =================================================================
+-- Tabela: public.extractions
+-- Armazena o estado e o progresso de cada processo de extração.
+-- =================================================================
+
+-- Definição do tipo ENUM para o estado da extração
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'extraction_status') THEN
+        CREATE TYPE extraction_status AS ENUM ('pending', 'running', 'completed', 'failed', 'paused');
+    END IF;
+END$$;
+
+CREATE TABLE IF NOT EXISTS public.extractions
+(
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    repository_owner        VARCHAR(255) NOT NULL,
+    repository_name         VARCHAR(255) NOT NULL,
+    
+    status                  extraction_status NOT NULL DEFAULT 'pending',
+    
+    -- Cursors para paginação (a chave para pausar/retomar)
+    last_issue_cursor       VARCHAR(255),
+    last_pr_cursor          VARCHAR(255),
+
+    -- Métricas e Logs
+    total_issues_fetched    INTEGER NOT NULL DEFAULT 0,
+    total_prs_fetched       INTEGER NOT NULL DEFAULT 0,
+    error_message           TEXT,
+    
+    started_at              TIMESTAMPTZ,
+    finished_at             TIMESTAMPTZ,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    -- Constraint para garantir que a extração está ligada a um repositório válido
+    CONSTRAINT fk_extractions_to_repositories
+        FOREIGN KEY (repository_owner, repository_name)
+        REFERENCES public.repositories (owner, name)
+        ON DELETE CASCADE
+);
+
+COMMENT ON TABLE public.extractions IS 'Gerencia o estado e o progresso de cada job de extração de dados.';
+COMMENT ON COLUMN public.extractions.last_issue_cursor IS 'Armazena o cursor da última issue buscada na API do GitHub para permitir a retomada.';
+
+-- Trigger para atualizar o campo updated_at automaticamente
+CREATE OR REPLACE FUNCTION trigger_set_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER set_timestamp
+BEFORE UPDATE ON public.extractions
+FOR EACH ROW
+EXECUTE PROCEDURE trigger_set_timestamp();

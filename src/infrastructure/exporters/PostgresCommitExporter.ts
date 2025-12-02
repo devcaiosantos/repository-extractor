@@ -4,16 +4,19 @@ import { ICommitExporter } from "../../domain/services/ICommitExporter";
 import { RepositoryIdentifier } from "../../domain/value-objects/RepositoryIdentifier";
 
 export class PostgresCommitExporter implements ICommitExporter {
-  private pool: Pool;
+  private pool: Pool | null = null;
 
-  constructor() {
-    this.pool = new Pool({
-      user: process.env.DB_USER,
-      host: process.env.DB_HOST,
-      database: process.env.DB_NAME,
-      password: process.env.DB_PASSWORD,
-      port: Number(process.env.DB_PORT),
-    });
+  private getPool(): Pool {
+    if (!this.pool) {
+      this.pool = new Pool({
+        user: process.env.DB_USER,
+        host: process.env.DB_HOST,
+        database: process.env.DB_NAME,
+        password: process.env.DB_PASSWORD,
+        port: Number(process.env.DB_PORT),
+      });
+    }
+    return this.pool;
   }
 
   public async export(
@@ -24,7 +27,7 @@ export class PostgresCommitExporter implements ICommitExporter {
       return;
     }
 
-    const client = await this.pool.connect();
+    const client = await this.getPool().connect();
 
     try {
       await client.query("BEGIN");

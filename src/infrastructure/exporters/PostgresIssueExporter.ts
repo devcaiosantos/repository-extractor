@@ -10,16 +10,19 @@ import { RepositoryIdentifier } from "../../domain/value-objects/RepositoryIdent
  * Implementação do IIssueExporter que salva as issues em um banco de dados PostgreSQL.
  */
 export class PostgresIssueExporter implements IIssueExporter {
-  private pool: Pool;
+  private pool: Pool | null = null;
 
-  constructor() {
-    this.pool = new Pool({
-      user: process.env.DB_USER,
-      host: process.env.DB_HOST,
-      database: process.env.DB_NAME,
-      password: process.env.DB_PASSWORD,
-      port: Number(process.env.DB_PORT),
-    });
+  private getPool(): Pool {
+    if (!this.pool) {
+      this.pool = new Pool({
+        user: process.env.DB_USER,
+        host: process.env.DB_HOST,
+        database: process.env.DB_NAME,
+        password: process.env.DB_PASSWORD,
+        port: Number(process.env.DB_PORT),
+      });
+    }
+    return this.pool;
   }
 
   public async export(
@@ -27,7 +30,7 @@ export class PostgresIssueExporter implements IIssueExporter {
     identifier: RepositoryIdentifier,
     mode: ExportMode
   ): Promise<void> {
-    const client = await this.pool.connect();
+    const client = await this.getPool().connect();
 
     try {
       await client.query("BEGIN");

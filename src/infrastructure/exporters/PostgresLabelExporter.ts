@@ -3,23 +3,26 @@ import { DomainLabel, Issue, PullRequest } from "../../domain/entities/main";
 import { ILabelExporter } from "../../domain/services/ILabelExporter";
 
 export class PostgresLabelExporter implements ILabelExporter {
-  private pool: Pool;
+  private pool: Pool | null = null;
 
-  constructor() {
-    this.pool = new Pool({
-      user: process.env.DB_USER,
-      host: process.env.DB_HOST,
-      database: process.env.DB_NAME,
-      password: process.env.DB_PASSWORD,
-      port: Number(process.env.DB_PORT),
-    });
+  private getPool(): Pool {
+    if (!this.pool) {
+      this.pool = new Pool({
+        user: process.env.DB_USER,
+        host: process.env.DB_HOST,
+        database: process.env.DB_NAME,
+        password: process.env.DB_PASSWORD,
+        port: Number(process.env.DB_PORT),
+      });
+    }
+    return this.pool;
   }
 
   async exportFromIssues(issues: Issue[]): Promise<void> {
     const allLabels = this.collectLabels(issues);
     if (allLabels.length === 0) return;
 
-    const client = await this.pool.connect();
+    const client = await this.getPool().connect();
     try {
       await client.query("BEGIN");
 
@@ -45,7 +48,7 @@ export class PostgresLabelExporter implements ILabelExporter {
     const allLabels = this.collectLabels(pullRequests);
     if (allLabels.length === 0) return;
 
-    const client = await this.pool.connect();
+    const client = await this.getPool().connect();
     try {
       await client.query("BEGIN");
 

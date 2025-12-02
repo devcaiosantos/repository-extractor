@@ -1,3 +1,4 @@
+import { Extraction } from "../domain/entities/main";
 import {
   Issue,
   PullRequest,
@@ -5,6 +6,7 @@ import {
   Comment,
   Commit,
 } from "../domain/entities/main";
+import { IExtractionRepository } from "../domain/repositories/IExtractionRepository";
 import { IRepoRepository } from "../domain/repositories/IRepoRepository";
 import { ICommentExporter } from "../domain/services/ICommentExporter";
 import { ICommitExporter } from "../domain/services/ICommitExporter";
@@ -23,6 +25,7 @@ export interface ExtractInput {
 export class ExtractDataFromRepo {
   constructor(
     private readonly repoRepository: IRepoRepository,
+    private readonly extractionRepository: IExtractionRepository, // Adicionado
     private readonly repoExporter: IRepoExporter,
     private readonly issuesExporter: IIssueExporter,
     private readonly pullRequestExporter: IPullRequestExporter,
@@ -31,121 +34,119 @@ export class ExtractDataFromRepo {
     private readonly commitExporter: ICommitExporter
   ) {}
 
-  async extractRepoInfoAndSave(input: ExtractInput): Promise<void> {
+  async execute(extraction: Extraction, token: string): Promise<void> {
     const repositoryIdentifier = new RepositoryIdentifier(
-      input.owner,
-      input.repoName
+      extraction.repository_owner,
+      extraction.repository_name
     );
 
+    await this.extractionRepository.updateStatus(extraction.id, "running");
+
+    // 1. Extrair informações do repositório (sempre acontece)
     console.log(
       `Extraindo dados do repositório: ${repositoryIdentifier.toString()}...`
     );
-
-    const repoConsumer = async (repoInfo: RepositoryInfo): Promise<void> => {};
-
-    console.log("Iniciando extração e salvamento no banco de dados...");
-
     const repoInfo = await this.repoRepository.findRepositoryInfo(
       repositoryIdentifier,
-      input.token
+      token
+    );
+    await this.repoExporter.export(repoInfo, repositoryIdentifier);
+    console.log("✅ Informações do repositório salvas.");
+
+    // 2. Extrair Issues
+    console.log("\nIniciando extração de Issues...");
+    await this.extractIssuesAndSave(extraction, token, repositoryIdentifier);
+
+    // 3. Extrair Pull Requests
+    console.log("\nIniciando extração de Pull Requests...");
+    await this.extractPullRequestsAndSave(
+      extraction,
+      token,
+      repositoryIdentifier
     );
 
-    await this.repoExporter.export(repoInfo, repositoryIdentifier);
-    console.log("\n✅ Processo de salvamento no banco de dados concluído!");
+    await this.extractionRepository.updateStatus(extraction.id, "completed");
+    console.log("\n🎉 Extração concluída com sucesso!");
   }
 
-  async extractIssuesAndSave(input: ExtractInput): Promise<void> {
-    const repositoryIdentifier = new RepositoryIdentifier(
-      input.owner,
-      input.repoName
-    );
-
-    await this.issuesExporter.export([], repositoryIdentifier, "replace");
-
-    const issueConsumer = async (issues: Issue[]): Promise<void> => {
+  private async extractIssuesAndSave(
+    extraction: Extraction,
+    token: string,
+    repoId: RepositoryIdentifier
+  ): Promise<void> {
+    const issueConsumer = async (
+      issues: Issue[],
+      cursor: string | null
+    ): Promise<void> => {
       if (issues.length > 0) {
-        await this.issuesExporter.export(
-          issues,
-          repositoryIdentifier,
-          "append"
-        );
+        await this.issuesExporter.export(issues, repoId, "append");
         await this.labelExporter.exportFromIssues(issues);
+        await this.extractionRepository.updateProgress(extraction.id, {
+          last_issue_cursor: cursor,
+          total_issues_fetched:
+            (extraction.total_issues_fetched || 0) + issues.length,
+        });
+        extraction.total_issues_fetched += issues.length; // Update local state
       }
     };
 
     const commentConsumer = async (comments: Comment[]): Promise<void> => {
       if (comments.length > 0) {
-        await this.commentExporter.export(
-          comments,
-          repositoryIdentifier,
-          "append"
-        );
+        await this.commentExporter.export(comments, repoId, "append");
       }
     };
-
-    console.log(
-      "Iniciando extração e salvamento incremental no banco de dados..."
-    );
 
     await this.repoRepository.findAllIssues(
-      repositoryIdentifier,
-      input.token,
+      repoId,
+      token,
       issueConsumer,
-      commentConsumer
+      commentConsumer,
+      extraction.last_issue_cursor // Passa o cursor inicial
     );
-
-    console.log("\n✅ Processo de salvamento no banco de dados concluído!");
+    console.log("✅ Issues salvas.");
   }
 
-  async extractPullRequestsAndSave(input: ExtractInput): Promise<void> {
-    const repositoryIdentifier = new RepositoryIdentifier(
-      input.owner,
-      input.repoName
-    );
-
-    await this.pullRequestExporter.export([], repositoryIdentifier, "replace");
-
+  private async extractPullRequestsAndSave(
+    extraction: Extraction,
+    token: string,
+    repoId: RepositoryIdentifier
+  ): Promise<void> {
     const pullRequestConsumer = async (
-      pullRequests: PullRequest[]
+      pullRequests: PullRequest[],
+      cursor: string | null
     ): Promise<void> => {
       if (pullRequests.length > 0) {
-        await this.pullRequestExporter.export(
-          pullRequests,
-          repositoryIdentifier,
-          "append"
-        );
+        await this.pullRequestExporter.export(pullRequests, repoId, "append");
         await this.labelExporter.exportFromPullRequests(pullRequests);
+        await this.extractionRepository.updateProgress(extraction.id, {
+          last_pr_cursor: cursor,
+          total_prs_fetched:
+            (extraction.total_prs_fetched || 0) + pullRequests.length,
+        });
+        extraction.total_prs_fetched += pullRequests.length; // Update local state
       }
     };
 
     const commentConsumer = async (comments: Comment[]): Promise<void> => {
       if (comments.length > 0) {
-        await this.commentExporter.export(
-          comments,
-          repositoryIdentifier,
-          "append"
-        );
+        await this.commentExporter.export(comments, repoId, "append");
       }
     };
 
     const commitConsumer = async (commits: Commit[]): Promise<void> => {
       if (commits.length > 0) {
-        await this.commitExporter.export(commits, repositoryIdentifier);
+        await this.commitExporter.export(commits, repoId);
       }
     };
 
-    console.log(
-      "\nIniciando extração e salvamento de Pull Requests no banco de dados..."
-    );
-
     await this.repoRepository.findAllPullRequests(
-      repositoryIdentifier,
-      input.token,
+      repoId,
+      token,
       pullRequestConsumer,
       commentConsumer,
-      commitConsumer
+      commitConsumer,
+      extraction.last_pr_cursor // Passa o cursor inicial
     );
-
-    console.log("\n✅ Processo de salvamento de Pull Requests concluído!");
+    console.log("✅ Pull Requests salvos.");
   }
 }

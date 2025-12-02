@@ -110,3 +110,26 @@ export interface Commit {
   repositoryOwner: string;
   repositoryName: string;
 }
+
+export type ExtractionStatus =
+  | "pending"
+  | "running"
+  | "completed"
+  | "failed"
+  | "paused";
+
+export interface Extraction {
+  id: string;
+  repository_owner: string;
+  repository_name: string;
+  status: ExtractionStatus;
+  last_issue_cursor?: string | null;
+  last_pr_cursor?: string | null;
+  total_issues_fetched: number;
+  total_prs_fetched: number;
+  error_message?: string | null;
+  started_at?: Date | null;
+  finished_at?: Date | null;
+  created_at: Date;
+  updated_at: Date;
+}

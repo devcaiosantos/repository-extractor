@@ -8,16 +8,19 @@ import { RepositoryIdentifier } from "../../domain/value-objects/RepositoryIdent
  * em um banco de dados PostgreSQL.
  */
 export class PostgresRepoExporter implements IRepoExporter {
-  private pool: Pool;
+  private pool: Pool | null = null;
 
-  constructor() {
-    this.pool = new Pool({
-      user: process.env.DB_USER,
-      host: process.env.DB_HOST,
-      database: process.env.DB_NAME,
-      password: process.env.DB_PASSWORD,
-      port: Number(process.env.DB_PORT),
-    });
+  private getPool(): Pool {
+    if (!this.pool) {
+      this.pool = new Pool({
+        user: process.env.DB_USER,
+        host: process.env.DB_HOST,
+        database: process.env.DB_NAME,
+        password: process.env.DB_PASSWORD,
+        port: Number(process.env.DB_PORT),
+      });
+    }
+    return this.pool;
   }
 
   public async export(
@@ -28,7 +31,7 @@ export class PostgresRepoExporter implements IRepoExporter {
       return;
     }
 
-    const client = await this.pool.connect();
+    const client = await this.getPool().connect();
 
     try {
       await client.query("BEGIN");
