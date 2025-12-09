@@ -73,10 +73,6 @@ export class PostgresIssueExporter implements IIssueExporter {
       }
 
       await client.query("COMMIT");
-
-      console.log(
-        `Operação no banco de dados para '${identifier.toString()}' concluída com sucesso.`
-      );
     } catch (error) {
       await client.query("ROLLBACK");
       console.error("Erro ao salvar no banco de dados:", error);

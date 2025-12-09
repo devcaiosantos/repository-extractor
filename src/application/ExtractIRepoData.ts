@@ -22,10 +22,17 @@ export interface ExtractInput {
   token: string;
 }
 
+export class ExtractionPausedError extends Error {
+  constructor() {
+    super("Extração pausada pelo usuário");
+    this.name = "ExtractionPausedError";
+  }
+}
+
 export class ExtractDataFromRepo {
   constructor(
     private readonly repoRepository: IRepoRepository,
-    private readonly extractionRepository: IExtractionRepository, // Adicionado
+    private readonly extractionExporter: IExtractionRepository, // Adicionado
     private readonly repoExporter: IRepoExporter,
     private readonly issuesExporter: IIssueExporter,
     private readonly pullRequestExporter: IPullRequestExporter,
@@ -34,39 +41,61 @@ export class ExtractDataFromRepo {
     private readonly commitExporter: ICommitExporter
   ) {}
 
-  async execute(extraction: Extraction, token: string): Promise<void> {
-    const repositoryIdentifier = new RepositoryIdentifier(
-      extraction.repository_owner,
-      extraction.repository_name
-    );
-
-    await this.extractionRepository.updateStatus(extraction.id, "running");
-
-    // 1. Extrair informações do repositório (sempre acontece)
-    console.log(
-      `Extraindo dados do repositório: ${repositoryIdentifier.toString()}...`
-    );
+  async execute(
+    repoIdentifier: RepositoryIdentifier,
+    token: string,
+    extractioParam?: Extraction
+  ): Promise<void> {
     const repoInfo = await this.repoRepository.findRepositoryInfo(
-      repositoryIdentifier,
+      repoIdentifier,
       token
     );
-    await this.repoExporter.export(repoInfo, repositoryIdentifier);
-    console.log("✅ Informações do repositório salvas.");
+    await this.repoExporter.export(repoInfo, repoIdentifier);
 
-    // 2. Extrair Issues
-    console.log("\nIniciando extração de Issues...");
-    await this.extractIssuesAndSave(extraction, token, repositoryIdentifier);
+    const extraction =
+      extractioParam ||
+      (await this.extractionExporter.findOrCreate(repoIdentifier));
 
-    // 3. Extrair Pull Requests
-    console.log("\nIniciando extração de Pull Requests...");
-    await this.extractPullRequestsAndSave(
-      extraction,
-      token,
-      repositoryIdentifier
-    );
+    try {
+      await this.extractionExporter.updateStatus(extraction.id, "running");
 
-    await this.extractionRepository.updateStatus(extraction.id, "completed");
-    console.log("\n🎉 Extração concluída com sucesso!");
+      // Definir totais esperados e step inicial apenas se não estiverem definidos (primeira execução)
+      if (!extraction.total_issues_expected) {
+        await this.extractionExporter.updateProgress(extraction.id, {
+          total_issues_expected: repoInfo.totalIssuesCount,
+          total_prs_expected: repoInfo.totalPullRequestsCount,
+          current_step: "issues",
+          progress_percentage: 0, // Começar de 0%
+        });
+        extraction.total_issues_expected = repoInfo.totalIssuesCount;
+        extraction.total_prs_expected = repoInfo.totalPullRequestsCount;
+      } else if (!extraction.current_step) {
+        // Se está retomando, apenas garantir que tem o step
+        await this.extractionExporter.updateProgress(extraction.id, {
+          current_step: "issues",
+        });
+      }
+
+      await this.extractIssuesAndSave(extraction, token, repoIdentifier);
+
+      // Atualizar step para Pull Requests
+      await this.extractionExporter.updateProgress(extraction.id, {
+        current_step: "pull_requests",
+      });
+
+      await this.extractPullRequestsAndSave(extraction, token, repoIdentifier);
+
+      // Finalizar com 100%
+      await this.extractionExporter.updateProgress(extraction.id, {
+        current_step: "completed",
+        progress_percentage: 100,
+      });
+
+      await this.extractionExporter.updateStatus(extraction.id, "completed");
+    } catch (error) {
+      await this.extractionExporter.logError(extraction.id, error as Error); // Loga o erro no job
+      throw error;
+    }
   }
 
   private async extractIssuesAndSave(
@@ -78,15 +107,33 @@ export class ExtractDataFromRepo {
       issues: Issue[],
       cursor: string | null
     ): Promise<void> => {
+      await this.checkIfShouldPause(extraction.id);
       if (issues.length > 0) {
         await this.issuesExporter.export(issues, repoId, "append");
         await this.labelExporter.exportFromIssues(issues);
-        await this.extractionRepository.updateProgress(extraction.id, {
+
+        const newTotal = (extraction.total_issues_fetched || 0) + issues.length;
+        extraction.total_issues_fetched = newTotal; // Update local state
+
+        // Calcular progresso baseado no total absoluto (issues + PRs)
+        let progressPercentage = 0;
+        const totalExpected =
+          (extraction.total_issues_expected || 0) +
+          (extraction.total_prs_expected || 0);
+        const totalFetched = newTotal + (extraction.total_prs_fetched || 0);
+
+        if (totalExpected > 0) {
+          progressPercentage = Math.min(
+            100,
+            (totalFetched / totalExpected) * 100
+          );
+        }
+
+        await this.extractionExporter.updateProgress(extraction.id, {
           last_issue_cursor: cursor,
-          total_issues_fetched:
-            (extraction.total_issues_fetched || 0) + issues.length,
+          total_issues_fetched: newTotal,
+          progress_percentage: Math.floor(progressPercentage),
         });
-        extraction.total_issues_fetched += issues.length; // Update local state
       }
     };
 
@@ -103,7 +150,6 @@ export class ExtractDataFromRepo {
       commentConsumer,
       extraction.last_issue_cursor // Passa o cursor inicial
     );
-    console.log("✅ Issues salvas.");
   }
 
   private async extractPullRequestsAndSave(
@@ -115,15 +161,34 @@ export class ExtractDataFromRepo {
       pullRequests: PullRequest[],
       cursor: string | null
     ): Promise<void> => {
+      await this.checkIfShouldPause(extraction.id);
       if (pullRequests.length > 0) {
         await this.pullRequestExporter.export(pullRequests, repoId, "append");
         await this.labelExporter.exportFromPullRequests(pullRequests);
-        await this.extractionRepository.updateProgress(extraction.id, {
+
+        const newTotal =
+          (extraction.total_prs_fetched || 0) + pullRequests.length;
+        extraction.total_prs_fetched = newTotal;
+
+        // Calcular progresso baseado no total absoluto (issues + PRs)
+        let progressPercentage = 0;
+        const totalExpected =
+          (extraction.total_issues_expected || 0) +
+          (extraction.total_prs_expected || 0);
+        const totalFetched = (extraction.total_issues_fetched || 0) + newTotal;
+
+        if (totalExpected > 0) {
+          progressPercentage = Math.min(
+            100,
+            (totalFetched / totalExpected) * 100
+          );
+        }
+
+        await this.extractionExporter.updateProgress(extraction.id, {
           last_pr_cursor: cursor,
-          total_prs_fetched:
-            (extraction.total_prs_fetched || 0) + pullRequests.length,
+          total_prs_fetched: newTotal,
+          progress_percentage: Math.floor(progressPercentage),
         });
-        extraction.total_prs_fetched += pullRequests.length; // Update local state
       }
     };
 
@@ -147,6 +212,17 @@ export class ExtractDataFromRepo {
       commitConsumer,
       extraction.last_pr_cursor // Passa o cursor inicial
     );
-    console.log("✅ Pull Requests salvos.");
+  }
+
+  private async checkIfShouldPause(extractionId: string): Promise<void> {
+    const extraction = await this.extractionExporter.findById(extractionId);
+
+    if (!extraction) {
+      throw new Error("Extração não encontrada");
+    }
+
+    if (extraction.status === "paused") {
+      throw new ExtractionPausedError();
+    }
   }
 }

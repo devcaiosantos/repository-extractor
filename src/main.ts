@@ -55,12 +55,12 @@ async function main() {
   const commentExporter = new PostgresCommentExporter();
   const labelExporter = new PostgresLabelExporter();
   const commitExporter = new PostgresCommitExporter();
-  const extractionExporter = new PostgresExtractionExporter(); // Novo
+  const extractionExporter = new PostgresExtractionExporter();
   const gitHubGraphqlRepository = new GitHubGraphqlRepository();
 
   const exportRepoData = new ExtractDataFromRepo(
     gitHubGraphqlRepository,
-    extractionExporter, // Novo
+    extractionExporter,
     repoExporter,
     issueExporter,
     pullRequestExporter,
@@ -70,16 +70,10 @@ async function main() {
   );
 
   const repoIdentifier = new RepositoryIdentifier(input.owner, input.repoName);
-  const extraction = await extractionExporter.findOrCreate(repoIdentifier);
-
-  console.log(`Iniciando/Retomando extração para o job: ${extraction.id}`);
-
   try {
-    await exportRepoData.execute(extraction, input.token);
+    await exportRepoData.execute(repoIdentifier, input.token);
   } catch (error) {
     console.error(`\n❌ Falha no processo.`);
-    await extractionExporter.logError(extraction.id, error as Error); // Loga o erro no job
-
     if (
       error instanceof RepositoryNotFoundError ||
       error instanceof InvalidTokenError ||

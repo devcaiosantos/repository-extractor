@@ -32,6 +32,9 @@ export const GetRepositoryInfo = gql`
       totalIssues: issues(states: [OPEN, CLOSED]) {
         totalCount
       }
+      totalPullRequests: pullRequests(states: [OPEN, CLOSED, MERGED]) {
+        totalCount
+      }
       licenseInfo {
         name
       }

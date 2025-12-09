@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Repository Extractor</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 Repository Extractor</h1>
+            <p class="subtitle">Extraia dados de repositórios do GitHub</p>
+        </header>
+
+        <main>
+            <!-- Formulário para criar nova extração -->
+            <section class="card">
+                <h2>Nova Extração</h2>
+                <form id="createExtractionForm">
+                    <div class="form-group">
+                        <label for="owner">Owner (Dono do Repositório)</label>
+                        <input type="text" id="owner" placeholder="Ex: facebook" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="repoName">Nome do Repositório</label>
+                        <input type="text" id="repoName" placeholder="Ex: react" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="token">Token do GitHub</label>
+                        <input type="password" id="token" placeholder="ghp_...">
+                        <small>Opcional se configurado no .env</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Criar Extração</button>
+                </form>
+            </section>
+
+            <!-- Lista de extrações -->
+            <section class="card">
+                <div class="section-header">
+                    <h2>Extrações</h2>
+                    <button class="btn btn-secondary" onclick="loadExtractions()">🔄 Atualizar</button>
+                </div>
+                <div id="extractionsList" class="extractions-list">
+                    <p class="loading">Carregando extrações...</p>
+                </div>
+            </section>
+
+            <!-- Detalhes da extração selecionada -->
+            <section class="card" id="extractionDetails" style="display: none;">
+                <h2>Detalhes da Extração</h2>
+                <div id="detailsContent"></div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Repository Extractor API v1.0.0</p>
+        </footer>
+    </div>
+
+    <!-- Toast para notificações -->
+    <div id="toast" class="toast"></div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>

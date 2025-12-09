@@ -2,6 +2,7 @@ import { Pool } from "pg";
 import { Extraction, ExtractionStatus } from "../../domain/entities/main";
 import { IExtractionRepository } from "../../domain/repositories/IExtractionRepository";
 import { RepositoryIdentifier } from "../../domain/value-objects/RepositoryIdentifier";
+import { ExtractionPausedError } from "../errors/customErrors";
 
 export class PostgresExtractionExporter implements IExtractionRepository {
   private pool: Pool | null = null;
@@ -111,6 +112,14 @@ export class PostgresExtractionExporter implements IExtractionRepository {
   }
 
   async logError(id: string, error: Error): Promise<void> {
+    // Se for ExtractionPausedError, não fazer nada pois o status já foi atualizado para 'paused'
+    if (
+      error instanceof ExtractionPausedError ||
+      error.name === "ExtractionPausedError"
+    ) {
+      return;
+    }
+
     const query =
       "UPDATE extractions SET status = 'failed', error_message = $1, finished_at = NOW() WHERE id = $2";
     await this.getPool().query(query, [error.message, id]);

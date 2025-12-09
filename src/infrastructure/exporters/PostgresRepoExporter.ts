@@ -37,8 +37,8 @@ export class PostgresRepoExporter implements IRepoExporter {
       await client.query("BEGIN");
 
       const query = `
-          INSERT INTO repositories (owner, name, description, url, license, language, stars, forks, open_issues_count, total_issues_count, created_at, updated_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          INSERT INTO repositories (owner, name, description, url, license, language, stars, forks, open_issues_count, total_issues_count, total_pull_requests_count, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
           ON CONFLICT (owner, name) DO UPDATE SET
             description = EXCLUDED.description,
             url = EXCLUDED.url,
@@ -48,6 +48,7 @@ export class PostgresRepoExporter implements IRepoExporter {
             forks = EXCLUDED.forks,
             open_issues_count = EXCLUDED.open_issues_count,
             total_issues_count = EXCLUDED.total_issues_count,
+            total_pull_requests_count = EXCLUDED.total_pull_requests_count,
             updated_at = EXCLUDED.updated_at;
         `;
 
@@ -62,6 +63,7 @@ export class PostgresRepoExporter implements IRepoExporter {
         repoInfo.forks,
         repoInfo.openIssuesCount,
         repoInfo.totalIssuesCount,
+        repoInfo.totalPullRequestsCount,
         repoInfo.createdAt,
         repoInfo.updatedAt,
       ]);

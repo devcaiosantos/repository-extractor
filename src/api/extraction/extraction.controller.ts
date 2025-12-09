@@ -1,13 +1,18 @@
 import { Request, Response } from "express";
 import { ExtractionService } from "./extraction.service";
 import { PostgresExtractionExporter } from "../../infrastructure/exporters/PostgresExtractionExporter";
+import { GitHubGraphqlRepository } from "../../infrastructure/api/github-graphql/GithubGraphqlRepository";
 
 export class ExtractionController {
   private extractionService: ExtractionService;
 
   constructor() {
     const extractionRepository = new PostgresExtractionExporter();
-    this.extractionService = new ExtractionService(extractionRepository);
+    const repoRepository = new GitHubGraphqlRepository();
+    this.extractionService = new ExtractionService(
+      extractionRepository,
+      repoRepository
+    );
   }
 
   async listExtractions(req: Request, res: Response): Promise<void> {
@@ -52,7 +57,7 @@ export class ExtractionController {
 
   async createExtraction(req: Request, res: Response): Promise<void> {
     try {
-      const { owner, repoName } = req.body;
+      const { owner, repoName, token } = req.body;
 
       if (!owner || !repoName) {
         res.status(400).json({
@@ -64,7 +69,8 @@ export class ExtractionController {
 
       const extraction = await this.extractionService.createExtraction(
         owner,
-        repoName
+        repoName,
+        token
       );
 
       res.status(201).json({

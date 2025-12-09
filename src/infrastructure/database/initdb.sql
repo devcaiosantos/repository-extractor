@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS public.repositories
     forks             INTEGER NOT NULL DEFAULT 0,
     open_issues_count INTEGER NOT NULL DEFAULT 0,
     total_issues_count INTEGER NOT NULL DEFAULT 0,
+    total_pull_requests_count INTEGER NOT NULL DEFAULT 0,
     created_at        TIMESTAMPTZ NOT NULL,
     updated_at        TIMESTAMPTZ,
     
@@ -309,6 +310,15 @@ CREATE TABLE IF NOT EXISTS public.extractions
     -- Métricas e Logs
     total_issues_fetched    INTEGER NOT NULL DEFAULT 0,
     total_prs_fetched       INTEGER NOT NULL DEFAULT 0,
+    
+    -- Totais esperados (preenchidos no início da extração)
+    total_issues_expected   INTEGER,
+    total_prs_expected      INTEGER,
+    
+    -- Informações de progresso
+    current_step            VARCHAR(50),  -- 'issues', 'pull_requests', 'commits', etc.
+    progress_percentage     INTEGER DEFAULT 0,
+    
     error_message           TEXT,
     
     started_at              TIMESTAMPTZ,

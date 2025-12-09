@@ -20,6 +20,9 @@ export interface IGetRepositoryInfoResponse {
     totalIssues: {
       totalCount: number;
     };
+    totalPullRequests: {
+      totalCount: number;
+    };
     createdAt: string;
     updatedAt: string;
   };

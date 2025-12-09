@@ -14,6 +14,7 @@ import {
   CommitFile,
 } from "../../../domain/entities/main";
 import { RepositoryIdentifier } from "../../../domain/value-objects/RepositoryIdentifier";
+import { ExtractionPausedError } from "../../errors/customErrors";
 import {
   GetRepositoryInfo,
   GetRepositoryIssues,
@@ -62,16 +63,6 @@ export class GitHubGraphqlRepository implements IRepoRepository {
       console.log(`Retomando extração a partir do cursor: ${startCursor}`);
     }
     console.log("Iniciando extração com GraphQL...\n");
-
-    const progressBar = new cliProgress.SingleBar(
-      {
-        format:
-          "Progresso GraphQL |{bar}| {percentage}% || {value}/{total} Issues || Página: {page}",
-      },
-      cliProgress.Presets.shades_classic
-    );
-
-    progressBar.start(totalIssues, 0, { page: 1 });
 
     let processedIssuesCount = 0;
     let hasNextPage = true;
@@ -124,18 +115,15 @@ export class GitHubGraphqlRepository implements IRepoRepository {
         }
 
         processedIssuesCount += issuesFromPage.length;
-        progressBar.update(processedIssuesCount, { page: currentPage });
 
         currentPage++;
 
         await new Promise((resolve) => setTimeout(resolve, 500));
       } catch (error: unknown) {
-        progressBar.stop();
         this.handleError(error, identifier);
       }
     }
 
-    progressBar.stop();
     console.log("\n✅ Extração GraphQL concluída com sucesso!");
     console.log(`Total de issues coletadas: ${processedIssuesCount}`);
   }
@@ -166,16 +154,6 @@ export class GitHubGraphqlRepository implements IRepoRepository {
       console.log(`Retomando extração a partir do cursor: ${startCursor}`);
     }
     console.log("Iniciando extração com GraphQL...\n");
-
-    const progressBar = new cliProgress.SingleBar(
-      {
-        format:
-          "Progresso GraphQL |{bar}| {percentage}% || {value}/{total} PRs || Página: {page}",
-      },
-      cliProgress.Presets.shades_classic
-    );
-
-    progressBar.start(totalPullRequests, 0, { page: 1 });
 
     let processedCount = 0;
     let hasNextPage = true;
@@ -238,18 +216,15 @@ export class GitHubGraphqlRepository implements IRepoRepository {
         }
 
         processedCount += prsFromPage.length;
-        progressBar.update(processedCount, { page: currentPage });
 
         currentPage++;
 
         await new Promise((resolve) => setTimeout(resolve, 500));
       } catch (error: unknown) {
-        progressBar.stop();
         this.handleError(error, identifier);
       }
     }
 
-    progressBar.stop();
     console.log("\n✅ Extração de Pull Requests concluída com sucesso!");
     console.log(`Total de PRs coletados: ${processedCount}`);
   }
@@ -287,6 +262,7 @@ export class GitHubGraphqlRepository implements IRepoRepository {
       forks: repo.forkCount,
       openIssuesCount: repo.openIssues.totalCount,
       totalIssuesCount: repo.totalIssues.totalCount,
+      totalPullRequestsCount: repo.totalPullRequests.totalCount,
       createdAt: new Date(repo.createdAt),
       updatedAt: new Date(repo.updatedAt),
     };
@@ -496,6 +472,16 @@ export class GitHubGraphqlRepository implements IRepoRepository {
   }
 
   private handleError(error: unknown, identifier: RepositoryIdentifier): never {
+    console.log(error);
+
+    // Se for ExtractionPausedError, propagar sem modificar
+    if (
+      error instanceof ExtractionPausedError ||
+      (error instanceof Error && error.name === "ExtractionPausedError")
+    ) {
+      throw error;
+    }
+
     if (error && typeof error === "object" && "networkError" in error) {
       const apolloError = error as any;
 

@@ -44,6 +44,7 @@ export interface RepositoryInfo {
   forks: number;
   openIssuesCount: number;
   totalIssuesCount: number;
+  totalPullRequestsCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -127,6 +128,10 @@ export interface Extraction {
   last_pr_cursor?: string | null;
   total_issues_fetched: number;
   total_prs_fetched: number;
+  total_issues_expected?: number | null;
+  total_prs_expected?: number | null;
+  current_step?: string | null;
+  progress_percentage: number;
   error_message?: string | null;
   started_at?: Date | null;
   finished_at?: Date | null;

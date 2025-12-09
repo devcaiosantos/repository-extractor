@@ -9,9 +9,15 @@ import { PostgresCommentExporter } from "../../infrastructure/exporters/Postgres
 import { PostgresLabelExporter } from "../../infrastructure/exporters/PostgresLabelExporter";
 import { PostgresCommitExporter } from "../../infrastructure/exporters/PostgresCommitExporter";
 import { GitHubGraphqlRepository } from "../../infrastructure/api/github-graphql/GithubGraphqlRepository";
+import { IRepoExporter } from "../../domain/services/RepoExporter";
+import { IRepoRepository } from "../../domain/repositories/IRepoRepository";
+import { ExtractionPausedError } from "../../infrastructure/errors/customErrors";
 
 export class ExtractionService {
-  constructor(private readonly extractionRepository: IExtractionRepository) {}
+  constructor(
+    private readonly extractionRepository: IExtractionRepository,
+    private readonly repoRepository: IRepoRepository
+  ) {}
 
   async listExtractions(): Promise<Extraction[]> {
     return await this.extractionRepository.findAll();
@@ -21,8 +27,21 @@ export class ExtractionService {
     return await this.extractionRepository.findById(id);
   }
 
-  async createExtraction(owner: string, repoName: string): Promise<Extraction> {
+  async createExtraction(
+    owner: string,
+    repoName: string,
+    token: string
+  ): Promise<Extraction> {
     const repoIdentifier = new RepositoryIdentifier(owner, repoName);
+
+    const repoInfo = await this.repoRepository.findRepositoryInfo(
+      repoIdentifier,
+      token
+    );
+
+    const repoExporter: IRepoExporter = new PostgresRepoExporter();
+    await repoExporter.export(repoInfo, repoIdentifier);
+
     return await this.extractionRepository.create(repoIdentifier);
   }
 
@@ -51,6 +70,12 @@ export class ExtractionService {
       throw new Error("Extração já está em execução");
     }
 
+    if (extraction.status === "completed") {
+      throw new Error(
+        "Extração já foi concluída. Crie uma nova extração se necessário."
+      );
+    }
+
     // Instanciar as dependências necessárias
     const repoExporter = new PostgresRepoExporter();
     const issueExporter = new PostgresIssueExporter();
@@ -72,24 +97,59 @@ export class ExtractionService {
       commitExporter
     );
 
+    const repoIdentifier = new RepositoryIdentifier(
+      extraction.repository_owner,
+      extraction.repository_name
+    );
+
     // Executar a extração de forma assíncrona
     // Não esperamos o resultado para não bloquear a resposta da API
-    this.executeExtractionAsync(extractDataFromRepo, extraction, token);
+    this.executeExtractionAsync(
+      extractDataFromRepo,
+      extraction,
+      repoIdentifier,
+      token
+    );
   }
 
   private async executeExtractionAsync(
     extractDataFromRepo: ExtractDataFromRepo,
     extraction: Extraction,
+    repoIdentifier: RepositoryIdentifier,
     token: string
   ): Promise<void> {
     try {
-      await extractDataFromRepo.execute(extraction, token);
+      await extractDataFromRepo.execute(repoIdentifier, token, extraction);
+      console.log(`✅ Extração ${extraction.id} concluída com sucesso`);
     } catch (error) {
-      console.error(`Erro na extração ${extraction.id}:`, error);
-      await this.extractionRepository.logError(
-        extraction.id,
-        error instanceof Error ? error : new Error("Erro desconhecido")
-      );
+      // Verificar se é um erro de pausa (não é um erro real)
+      if (
+        error instanceof ExtractionPausedError ||
+        (error instanceof Error && error.name === "ExtractionPausedError")
+      ) {
+        console.log(`⏸️ Extração ${extraction.id} foi pausada pelo usuário`);
+        // Não fazer nada, o status já foi atualizado para "paused"
+        return;
+      }
+
+      // Para outros erros, logar e atualizar status
+      console.error(`❌ Erro na extração ${extraction.id}:`, error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Erro desconhecido";
+      console.error(`Mensagem do erro: ${errorMessage}`);
+
+      // Atualizar status para falha no banco de dados
+      try {
+        await this.extractionRepository.updateStatus(extraction.id, "failed");
+        console.log(
+          `📝 Status da extração ${extraction.id} atualizado para 'failed'`
+        );
+      } catch (updateError) {
+        console.error(
+          `❌ Erro ao atualizar status da extração ${extraction.id}:`,
+          updateError
+        );
+      }
     }
   }
 }
