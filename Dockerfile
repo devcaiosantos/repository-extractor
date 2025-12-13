@@ -23,8 +23,10 @@ WORKDIR /usr/src/app
 COPY --from=builder /usr/src/app/node_modules ./node_modules
 # Copia os arquivos compilados do estágio de build
 COPY --from=builder /usr/src/app/dist ./dist
+# Copia os arquivos do frontend
+COPY --from=builder /usr/src/app/src/frontend ./dist/frontend
 # Copia o package.json para referência
 COPY package.json .
 
 # Define o comando para iniciar a aplicação, apontando para o caminho correto
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/server.js"]

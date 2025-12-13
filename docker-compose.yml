@@ -1,5 +1,3 @@
-version: "3.8"
-
 # =================================================================
 # Docker Compose para o Repository Extractor
 #
@@ -52,6 +50,12 @@ services:
     # Passa as variáveis de ambiente do arquivo .env para o container da aplicação.
     env_file:
       - .env
+    environment:
+      # Sobrescreve o DB_HOST para usar o nome do serviço do Docker
+      DB_HOST: db
+    ports:
+      # Mapeia a porta da aplicação para o host.
+      - "${PORT}:${PORT}"
 
 # --- Volume para persistência de dados do PostgreSQL ---
 volumes:
