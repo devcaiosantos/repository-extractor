@@ -19,4 +19,7 @@ router.post("/:id/pause", (req, res) => controller.pauseExtraction(req, res));
 // Iniciar/Retomar extração
 router.post("/:id/start", (req, res) => controller.startExtraction(req, res));
 
+// Deletar extração
+router.delete("/:id", (req, res) => controller.deleteExtraction(req, res));
+
 export default router;

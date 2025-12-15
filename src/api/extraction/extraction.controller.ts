@@ -139,4 +139,25 @@ export class ExtractionController {
       });
     }
   }
+
+  async deleteExtraction(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      await this.extractionService.deleteExtraction(id);
+
+      res.json({
+        success: true,
+        message: "Extração deletada com sucesso",
+      });
+    } catch (error) {
+      const statusCode =
+        error instanceof Error && error.message.includes("não encontrada")
+          ? 404
+          : 400;
+      res.status(statusCode).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Erro desconhecido",
+      });
+    }
+  }
 }

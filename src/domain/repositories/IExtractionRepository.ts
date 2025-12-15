@@ -9,4 +9,5 @@ export interface IExtractionRepository {
   updateStatus(id: string, status: ExtractionStatus): Promise<void>;
   updateProgress(id: string, updates: Partial<Extraction>): Promise<void>;
   logError(id: string, error: Error): Promise<void>;
+  delete(id: string): Promise<void>;
 }

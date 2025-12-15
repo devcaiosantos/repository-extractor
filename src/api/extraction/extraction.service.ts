@@ -112,6 +112,22 @@ export class ExtractionService {
     );
   }
 
+  async deleteExtraction(id: string): Promise<void> {
+    const extraction = await this.extractionRepository.findById(id);
+
+    if (!extraction) {
+      throw new Error("Extração não encontrada");
+    }
+
+    if (extraction.status === "running") {
+      throw new Error(
+        "Não é possível deletar uma extração em execução. Pause-a primeiro."
+      );
+    }
+
+    await this.extractionRepository.delete(id);
+  }
+
   private async executeExtractionAsync(
     extractDataFromRepo: ExtractDataFromRepo,
     extraction: Extraction,

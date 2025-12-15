@@ -169,6 +169,14 @@ function getActionButtons(extraction) {
         `);
   }
 
+  if (extraction.status !== "running") {
+    buttons.push(`
+            <button class="btn btn-danger" onclick="deleteExtraction('${extraction.id}')">
+                🗑️ Deletar
+            </button>
+        `);
+  }
+
   return buttons.join("");
 }
 
@@ -285,6 +293,40 @@ async function pauseExtraction(id) {
     await loadExtractions();
   } catch (error) {
     console.error("Erro ao pausar extração:", error);
+    showToast(error.message, "error");
+  }
+}
+
+// Deletar extração
+async function deleteExtraction(id) {
+  if (
+    !confirm(
+      "Deseja realmente deletar esta extração? Esta ação não pode ser desfeita."
+    )
+  ) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/${id}`, {
+      method: "DELETE",
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || "Erro ao deletar extração");
+    }
+
+    showToast("Extração deletada com sucesso!", "success");
+
+    // Fechar detalhes se estiver aberto
+    const detailsSection = document.getElementById("extractionDetails");
+    detailsSection.style.display = "none";
+
+    await loadExtractions();
+  } catch (error) {
+    console.error("Erro ao deletar extração:", error);
     showToast(error.message, "error");
   }
 }

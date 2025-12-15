@@ -124,4 +124,9 @@ export class PostgresExtractionExporter implements IExtractionRepository {
       "UPDATE extractions SET status = 'failed', error_message = $1, finished_at = NOW() WHERE id = $2";
     await this.getPool().query(query, [error.message, id]);
   }
+
+  async delete(id: string): Promise<void> {
+    const query = "DELETE FROM extractions WHERE id = $1";
+    await this.getPool().query(query, [id]);
+  }
 }
